@@ -7,6 +7,7 @@ import FormContainer from './FormContainer';
 import InputField from './InputField';
 import SelectField from './SelectField';
 import Header from './Header';
+import { authEndpoints, healthCheck } from '../../config/api';
 
 interface FormData {
   email: string;
@@ -99,40 +100,36 @@ export default function SignupForm() {
     return Object.keys(newErrors).length === 0;
   };
 
- // עדכון לפונקציית handleSubmit ב-SignupForm.tsx להוספת לוגים מפורטים
-
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setApiError('');
-  
-  if (validateForm()) {
-    setIsLoading(true);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setApiError('');
     
-    try {
-      // בדיקה אם השרת זמין
-      try {
-        const healthCheck = await fetch('https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/health');
-        console.log('API server health check status:', healthCheck.status);
-      } catch (healthError) {
-        console.error('API server health check failed. Server might be down:', healthError);
-      }
+    if (validateForm()) {
+      setIsLoading(true);
       
-      // שמירת נתוני הטופס
-      console.log('Registration data:', {
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        password: '[HIDDEN]',
-        englishLevel: formData.englishLevel,
-        ageRange: formData.ageRange,
-      });
+      try {
+        // שמירת נתוני הטופס
+        console.log('Registration data:', {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          password: '[HIDDEN]',
+          englishLevel: formData.englishLevel,
+          ageRange: formData.ageRange,
+        });
 
-      // Use external API directly
-      const response = await fetch('https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        // בדיקה אם השרת זמין
+        try {
+          console.log('Checking API health...');
+          const healthData = await healthCheck();
+          console.log('API health check result:', healthData);
+        } catch (healthError) {
+          console.warn('API health check failed, but proceeding with registration:', healthError);
+        }
+
+        // Use centralized API configuration for registration
+        const data = await authEndpoints.register({
           email: formData.email,
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -140,59 +137,48 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
           password: formData.password,
           englishLevel: formData.englishLevel,
           ageRange: formData.ageRange,
-        }),
-      });
-      
-      console.log('Registration response status:', response.status);
-      const data = await response.json();
-      console.log('Registration response data:', data);
-
-      if (!response.ok) {
-        // לוג מפורט של השגיאה
-        console.error('Registration error details:', {
-          status: response.status,
-          message: data.message || 'No error message provided',
-          details: data.details || data.errors || 'No details provided'
         });
-        
-        let errorMessage = data.message || 'Registration failed';
-        
-        // אם יש פרטי שגיאה נוספים, נציג אותם
-        if (data.details) {
-          if (Array.isArray(data.details)) {
-            errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
-          } else if (typeof data.details === 'string') {
-            errorMessage += ': ' + data.details;
+
+        console.log('Registration response data:', data);
+
+        if (!data.success) {
+          let errorMessage = data.message || 'Registration failed';
+          
+          // אם יש פרטי שגיאה נוספים, נציג אותם
+          if (data.details) {
+            if (Array.isArray(data.details)) {
+              errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
+            } else if (typeof data.details === 'string') {
+              errorMessage += ': ' + data.details;
+            }
           }
-        } else if (data.errors && Array.isArray(data.errors)) {
-          errorMessage += ': ' + data.errors.map((err: ErrorDetail) => err.msg || err.message).join(', ');
+          
+          throw new Error(errorMessage);
         }
-        
-        throw new Error(errorMessage);
-      }
 
-      // Store the token if provided
-      if (data.token) {
-        console.log('Received and storing auth token');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        console.warn('No auth token received in response');
-      }
+        // Store the token if provided
+        if (data.token) {
+          console.log('Received and storing auth token');
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        } else {
+          console.warn('No auth token received in response');
+        }
 
-      console.log('Registration successful, redirecting to topics page');
-      router.push('/topics');
-    } catch (error: unknown) {
-      console.error('Registration error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
-      setApiError(errorMessage);
-    } finally {
-      setIsLoading(false);
+        console.log('Registration successful, redirecting to topics page');
+        router.push('/topics');
+      } catch (error: unknown) {
+        console.error('Registration error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+        setApiError(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      console.warn('Form validation failed');
     }
-  } else {
-    console.warn('Form validation failed');
-  }
-};
+  };
+
   // החזר מסך טעינה אם טרם הושלם הרינדור בצד הלקוח
   if (!isMounted) {
     return (
