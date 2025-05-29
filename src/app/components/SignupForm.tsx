@@ -19,6 +19,11 @@ interface FormData {
   ageRange: string;
 }
 
+interface ErrorDetail {
+  msg?: string;
+  message?: string;
+}
+
 export default function SignupForm() {
   const router = useRouter();
   // דגל שמציין אם אנחנו בצד הלקוח
@@ -172,12 +177,12 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         // אם יש פרטי שגיאה נוספים, נציג אותם
         if (data.details) {
           if (Array.isArray(data.details)) {
-            errorMessage += ': ' + data.details.map((err: any) => err.msg || err.message).join(', ');
+            errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
           } else if (typeof data.details === 'string') {
             errorMessage += ': ' + data.details;
           }
         } else if (data.errors && Array.isArray(data.errors)) {
-          errorMessage += ': ' + data.errors.map((err: any) => err.msg || err.message).join(', ');
+          errorMessage += ': ' + data.errors.map((err: ErrorDetail) => err.msg || err.message).join(', ');
         }
         
         throw new Error(errorMessage);

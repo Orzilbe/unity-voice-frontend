@@ -7,7 +7,7 @@ import { checkApiHealth } from '../lib/auth';
 export default function ApiDebug() {
   const [apiStatus, setApiStatus] = useState<null | {
     isReachable: boolean;
-    details: any;
+    details: unknown;
   }>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);

@@ -10,7 +10,7 @@ const AuthCheck = () => {
   const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
   const [message, setMessage] = useState('בודק אימות...');
   const [token, setToken] = useState<string | null>(null);
-  const [decoded, setDecoded] = useState<any>(null);
+  const [decoded, setDecoded] = useState<{ userId?: string; sub?: string; email?: string; name?: string; [key: string]: unknown } | null>(null);
 
   // פונקציה לבדיקת קריאה פשוטה ל-API
   const testApiCall = async () => {
@@ -37,7 +37,7 @@ const AuthCheck = () => {
         return;
       }
       
-      const data = await response.json();
+      const data: { isAuthenticated: boolean; userId?: string } = await response.json();
       setStatus('success');
       setMessage('אימות הצליח!');
       setDecoded(data);

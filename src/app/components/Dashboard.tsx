@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Users, Activity, BookOpen, TrendingUp, Calendar, BarChart3, RefreshCw, AlertCircle, Download } from 'lucide-react';
+import { Users, Activity, TrendingUp, Calendar, RefreshCw, AlertCircle, Download } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

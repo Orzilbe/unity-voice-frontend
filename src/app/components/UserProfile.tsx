@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // Extend the User interface to match your database structure
 interface User {
@@ -29,7 +29,6 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
   const [showProfile, setShowProfile] = useState(isVisible);
   const [userData, setUserData] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   // Update showProfile when isVisible changes
   useEffect(() => {
@@ -112,9 +111,11 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
             onClick={toggleProfile}
           >
             {userData?.ProfilePicture ? (
-              <img 
+              <Image 
                 src={userData.ProfilePicture} 
                 alt="Profile" 
+                width={48}
+                height={48}
                 className="w-full h-full rounded-full object-cover"
               />
             ) : (
@@ -138,9 +139,11 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
               {/* Profile Picture */}
               {userData.ProfilePicture && (
                 <div className="flex justify-center mb-4">
-                  <img 
+                  <Image 
                     src={userData.ProfilePicture} 
                     alt="Profile" 
+                    width={96}
+                    height={96}
                     className="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
                   />
                 </div>
