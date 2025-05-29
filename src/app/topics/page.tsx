@@ -53,16 +53,15 @@ export default function Topics() {
   
   // Check both role and UserRole fields, and handle case-insensitive comparison
   const isAdmin = Boolean(
-    user?.role?.toLowerCase() === 'admin' || 
-    user?.UserRole?.toLowerCase() === 'admin'
+    (user?.role && typeof user.role === 'string' && user.role.toLowerCase() === 'admin') ||
+    (user?.UserRole && typeof user.UserRole === 'string' && user.UserRole.toLowerCase() === 'admin')
   );
   
-  console.log('Admin check result:', {
-    isAdmin,
-    roleCheck: user?.role?.toLowerCase() === 'admin',
-    UserRoleCheck: user?.UserRole?.toLowerCase() === 'admin',
-    roleValue: user?.role,
-    UserRoleValue: user?.UserRole
+  console.log('Admin check:', {
+    user: user ? 'exists' : 'null',
+    roleCheck: user?.role && typeof user.role === 'string' ? user.role.toLowerCase() === 'admin' : false,
+    userRoleCheck: user?.UserRole && typeof user.UserRole === 'string' ? user.UserRole.toLowerCase() === 'admin' : false,
+    isAdmin
   });
 
   const handleLogout = () => {
@@ -255,7 +254,7 @@ export default function Topics() {
             <TopicCard 
               key={topic.TopicName} 
               topic={topic} 
-              userId={user?.UserId || user?.userId || ''}
+              userId={String(user?.UserId || user?.userId || 0)}
               onError={handleTopicError}
             />
           ))}
