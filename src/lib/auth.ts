@@ -2,13 +2,30 @@
 
 import jwt from 'jsonwebtoken';
 
+interface User {
+  id?: string;
+  userId?: string;
+  email?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  [key: string]: unknown;
+}
+
+interface TokenPayload {
+  userId?: string;
+  id?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
 /**
  * Response from login attempt
  */
 export interface LoginResponse {
   success: boolean;
   token?: string;
-  user?: any;
+  user?: User;
   message?: string;
   details?: string;
 }
@@ -97,7 +114,7 @@ export async function loginUser(email: string, password: string): Promise<LoginR
  * @param token טוקן האימות לבדיקה
  * @returns נתוני המשתמש אם הטוקן תקף, אחרת null
  */
-export function verifyAuthToken(token: string): any | null {
+export function verifyAuthToken(token: string): TokenPayload | null {
   try {
     // בדיקה אם יש טוקן
     if (!token) {
@@ -106,7 +123,7 @@ export function verifyAuthToken(token: string): any | null {
 
     // פענוח הטוקן
     const secret = process.env.JWT_SECRET || 'your-fallback-secret'; // ודא שיש לך מפתח סודי אמיתי בהגדרות הסביבה
-    const decoded = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, secret) as TokenPayload;
     
     // החזרת נתוני המשתמש
     return decoded;

@@ -1,10 +1,18 @@
 // apps/web/src/hooks/useAuth.ts
 import { useState, useEffect } from 'react';
 
+interface User {
+  id?: string;
+  userId?: string;
+  email?: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: any | null;
+  user: User | null;
   error: string | null;
 }
 

@@ -37,3 +37,104 @@ export enum SessionType {
     LISTENING_COMPREHENSION = "listeningComprehension",
     conversation = "conversation"
   } 
+
+// Database result types
+export interface RowDataPacket {
+  [key: string]: unknown;
+}
+
+export interface QueryResult {
+  [key: string]: unknown;
+}
+
+// API types
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+// User types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  profile?: UserProfile;
+}
+
+export interface UserProfile {
+  id?: number;
+  userId?: number;
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  ageRange?: AgeRange;
+  englishLevel?: EnglishLevel;
+  profileImageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Task types
+export interface Task {
+  id: string;
+  name: string;
+  type: TaskType;
+  status: string;
+  topicId?: number;
+  userId?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// JWT Payload type
+export interface JWTPayload {
+  userId: number;
+  username: string;
+  role: string;
+  iat?: number;
+  exp?: number;
+}
+
+// Database connection types
+export interface DatabaseError extends Error {
+  code?: string;
+  errno?: number;
+  sqlState?: string;
+  sqlMessage?: string;
+}
+
+// Word types
+export interface Word {
+  id: number;
+  word: string;
+  translation?: string;
+  definition?: string;
+  example?: string;
+  topic?: string;
+  level?: EnglishLevel;
+}
+
+// Comment types
+export interface Comment {
+  id: number;
+  content: string;
+  userId: number;
+  postId?: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// Post types
+export interface Post {
+  id: number;
+  title: string;
+  content: string;
+  userId: number;
+  topicId?: number;
+  status?: string;
+  createdAt: string;
+  updatedAt?: string;
+} 

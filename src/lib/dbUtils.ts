@@ -1,7 +1,6 @@
 // apps/web/src/lib/dbUtils.ts
-import { getDbPool, getSafeDbPool } from '../app/lib/db';
+import { getSafeDbPool } from '../app/lib/db';
 import { ResultSetHeader } from 'mysql2';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * יוצר שיחה אינטראקטיבית חדשה בבסיס הנתונים
@@ -86,7 +85,7 @@ export async function createQuestion(
 export async function updateQuestion(
   questionId: string,
   answerText?: string,
-  feedback?: any
+  feedback?: unknown
 ): Promise<boolean> {
   try {
     // שימוש ב-getSafeDbPool כדי להימנע מזריקת שגיאה אם החיבור נכשל
@@ -102,8 +101,10 @@ export async function updateQuestion(
       : answerText;
     
     // עיבוד המשוב (יכול להיות מחרוזת או אובייקט)
-    let feedbackText = feedback;
-    if (feedback && typeof feedback !== 'string') {
+    let feedbackText: string | undefined = undefined;
+    if (feedback && typeof feedback === 'string') {
+      feedbackText = feedback;
+    } else if (feedback) {
       feedbackText = JSON.stringify(feedback);
     }
     
@@ -113,7 +114,7 @@ export async function updateQuestion(
 
     // בניית שאילתה על סמך הפרמטרים שסופקו
     let query = 'UPDATE Questions SET';
-    const params: any[] = [];
+    const params: unknown[] = [];
     const updates: string[] = [];
 
     if (truncatedAnswer !== undefined) {
