@@ -122,7 +122,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 
       // בדיקה אם השרת זמין
       try {
-        const healthCheck = await fetch('http://localhost:5000/api/health', { mode: 'no-cors' });
+        const healthCheck = await fetch('unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/health', { mode: 'no-cors' });
         console.log('API server health check status:', healthCheck.status);
       } catch (healthError) {
         console.error('API server health check failed. Server might be down:', healthError);
