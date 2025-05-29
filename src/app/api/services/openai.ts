@@ -55,11 +55,11 @@ export async function generateWords(englishLevel: string, topicName: string): Pr
     console.log('Azure OpenAI API response received successfully');
     
     // Parse the JSON response
-    let wordsData;
+    let wordsData: Array<{ word: string; translation: string; example: string }>;
     try {
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       const jsonString = jsonMatch ? jsonMatch[0] : responseText;
-      wordsData = JSON.parse(jsonString);
+      wordsData = JSON.parse(jsonString) as Array<{ word: string; translation: string; example: string }>;
     } catch (error) {
       console.error('Error parsing OpenAI response:', error);
       console.error('Raw response text:', responseText);
@@ -67,7 +67,7 @@ export async function generateWords(englishLevel: string, topicName: string): Pr
     }
     
     // Convert to GeneratedWord format
-    const generatedWords: GeneratedWord[] = wordsData.map((item: any) => ({
+    const generatedWords: GeneratedWord[] = wordsData.map((item: { word: string; translation: string; example: string }) => ({
       WordId: uuidv4(),
       Word: item.word,
       Translation: item.translation,
@@ -88,12 +88,13 @@ export async function generateWords(englishLevel: string, topicName: string): Pr
       console.error('Error stack:', error.stack);
       
       // Handle specific OpenAI errors
-      if ('status' in (error as any)) {
-        console.error('Status code:', (error as any).status);
+      const errorWithStatus = error as Error & { status?: number; response?: unknown };
+      if (errorWithStatus.status) {
+        console.error('Status code:', errorWithStatus.status);
       }
       
-      if ('response' in (error as any) && (error as any).response) {
-        const response = (error as any).response;
+      if (errorWithStatus.response) {
+        const response = errorWithStatus.response as { status?: number; headers?: unknown; data?: unknown };
         console.error('Response status:', response.status);
         console.error('Response headers:', response.headers);
         console.error('Response data:', response.data);
@@ -214,6 +215,8 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
   }
 }
 
-export default {
+const openaiService = {
   generateWords
 };
+
+export default openaiService;

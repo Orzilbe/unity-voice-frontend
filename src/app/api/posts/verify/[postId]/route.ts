@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../../auth/verifyAuth';
 import { getSafeDbPool } from '../../../../lib/db';
+import { RowDataPacket } from '../../../../../types';
 
 /**
  * בדיקה אם פוסט קיים - GET /api/posts/verify/[postId]
@@ -47,7 +48,7 @@ export async function GET(
         [postId]
       );
       
-      const posts = postsResult as any[];
+      const posts = postsResult as RowDataPacket[];
       
       if (Array.isArray(posts) && posts.length > 0) {
         console.log(`Post ${postId} exists in posts table`);
@@ -61,7 +62,7 @@ export async function GET(
         [postId]
       );
       
-      const capitalizedPosts = capitalizedResult as any[];
+      const capitalizedPosts = capitalizedResult as RowDataPacket[];
       
       if (Array.isArray(capitalizedPosts) && capitalizedPosts.length > 0) {
         console.log(`Post ${postId} exists in Posts table`);

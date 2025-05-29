@@ -5,9 +5,11 @@ import jwt from 'jsonwebtoken';
 // Function to verify admin token
 function verifyAdminToken(token: string): boolean {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string; isAdmin?: boolean };
+    console.log('Decoded token:', decoded);
     return decoded.isAdmin === true;
-  } catch (error) {
+  } catch {
+    console.log('Migration route - authentication not required');
     return false;
   }
 }

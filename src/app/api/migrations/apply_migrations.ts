@@ -1,6 +1,7 @@
 import { getSafeDbPool } from '../../lib/db';
 import fs from 'fs';
 import path from 'path';
+import { RowDataPacket } from '../../../types';
 
 export async function applyMigrations() {
   console.log('Starting database migrations...');
@@ -28,7 +29,7 @@ export async function applyMigrations() {
 
     // Get already applied migrations
     const [appliedMigrations] = await pool.query('SELECT id FROM migrations');
-    const appliedIds = (appliedMigrations as any[]).map(m => m.id);
+    const appliedIds = (appliedMigrations as (RowDataPacket & { id: string })[]).map(m => m.id);
 
     // Apply new migrations
     for (const file of migrationFiles) {

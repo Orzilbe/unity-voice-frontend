@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import jwt from 'jsonwebtoken';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Initialize Azure OpenAI
 const openai = new AzureOpenAI({
@@ -48,7 +49,7 @@ interface ConversationResponse {
 function validateToken(token: string): { isValid: boolean; userId: string } {
   try {
     const secret = process.env.JWT_SECRET || 'default_secret';
-    const decoded = jwt.verify(token, secret) as any;
+    const decoded = jwt.verify(token, secret) as { id?: string; userId?: string; sub?: string };
     const userId = decoded.id || decoded.userId || decoded.sub;
     
     return { isValid: !!userId, userId: userId || '' };
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Make the Azure OpenAI API call
     const completion = await openai.chat.completions.create({
       model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || "gpt-4o",
-      messages: messages as any[],
+      messages: messages as ChatCompletionMessageParam[],
       temperature: 0.7,
       max_tokens: 650,
       response_format: { type: "json_object" }
@@ -198,12 +199,12 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(responseData);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in analyze-conversation API:", error);
     return NextResponse.json(
       { 
         error: "Failed to analyze conversation",
-        details: error.message 
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

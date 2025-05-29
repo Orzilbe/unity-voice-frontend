@@ -1,7 +1,16 @@
 // apps/web/src/app/api/services/postService.ts
 import { getSafeDbPool } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { RowDataPacket } from '../../../types';
 
+interface PostData {
+  PostID: string;
+  TaskId: string;
+  PostContent: string;
+  Picture: string | null;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+}
 
 /**
  * Function to create a new post or update an existing one
@@ -48,7 +57,7 @@ export async function createOrUpdatePost(postId: string, taskId: string, postCon
           [finalPostId]
         );
         
-        const posts = existingPosts as any[];
+        const posts = existingPosts as RowDataPacket[];
         
         if (posts.length > 0) {
           // Update existing post
@@ -115,7 +124,7 @@ export async function createOrUpdatePost(postId: string, taskId: string, postCon
             [finalPostId]
           );
           
-          const posts = existingPosts as any[];
+          const posts = existingPosts as RowDataPacket[];
           
           if (posts.length > 0) {
             // Update existing post
@@ -224,7 +233,7 @@ export async function doesPostExist(postId: string): Promise<boolean> {
         [postId]
       );
       
-      const rows = result as any[];
+      const rows = result as RowDataPacket[];
       
       if (Array.isArray(rows) && rows.length > 0) {
         console.log(`Post ${postId} exists in posts table`);
@@ -238,7 +247,7 @@ export async function doesPostExist(postId: string): Promise<boolean> {
         [postId]
       );
       
-      const capitalizedRows = capitalizedResult as any[];
+      const capitalizedRows = capitalizedResult as RowDataPacket[];
       
       if (Array.isArray(capitalizedRows) && capitalizedRows.length > 0) {
         console.log(`Post ${postId} exists in Posts table`);
@@ -267,7 +276,7 @@ export async function doesPostExist(postId: string): Promise<boolean> {
  * @returns מזהה הפוסט, או null אם לא נמצא
  */
 export async function getPostIdByTaskId(taskId: string): Promise<string | null> {
-  console.group(`Getting PostID for TaskId: ${taskId}`);
+  console.group(`Getting PostID for TaskId ${taskId}`);
   
   try {
     const pool = await getSafeDbPool();
@@ -277,14 +286,14 @@ export async function getPostIdByTaskId(taskId: string): Promise<string | null> 
       return null;
     }
     
-    // ניסיון לקבל את מזהה הפוסט מהטבלה posts
     try {
+      // נחפש בטבלת posts
       const [result] = await pool.query(
         'SELECT PostID FROM posts WHERE TaskId = ?',
         [taskId]
       );
       
-      const rows = result as any[];
+      const rows = result as (RowDataPacket & { PostID: string })[];
       
       if (Array.isArray(rows) && rows.length > 0) {
         const postId = rows[0].PostID;
@@ -299,7 +308,7 @@ export async function getPostIdByTaskId(taskId: string): Promise<string | null> 
         [taskId]
       );
       
-      const capitalizedRows = capitalizedResult as any[];
+      const capitalizedRows = capitalizedResult as (RowDataPacket & { PostID: string })[];
       
       if (Array.isArray(capitalizedRows) && capitalizedRows.length > 0) {
         const postId = capitalizedRows[0].PostID;
@@ -381,7 +390,7 @@ I'd love to hear your thoughts on how this impacts our daily lives and what chan
  * @param topicName Optional topic name for generating fallback content
  * @returns The post data or a fallback
  */
-export async function getOrCreatePost(taskId: string, topicName?: string): Promise<any> {
+export async function getOrCreatePost(taskId: string, topicName?: string): Promise<PostData> {
   console.group('Getting or creating post for task:', taskId);
   
   try {
@@ -447,7 +456,7 @@ I'd love to hear your thoughts on how this impacts our daily lives and what chan
 /**
  * Function to get posts by task ID
  */
-export async function getPostsByTaskId(taskId: string): Promise<any[]> {
+export async function getPostsByTaskId(taskId: string): Promise<PostData[]> {
   console.group(`Getting posts for task ${taskId}`);
   
   try {
@@ -460,14 +469,14 @@ export async function getPostsByTaskId(taskId: string): Promise<any[]> {
     
     try {
       // Try to find posts in both possible tables
-      let posts: any[] = [];
+      let posts: PostData[] = [];
       
       try {
         const [postsResult] = await pool.query(
           'SELECT * FROM posts WHERE TaskId = ?',
           [taskId]
         );
-        posts = postsResult as any[];
+        posts = postsResult as (RowDataPacket & PostData)[];
         console.log(`Found ${posts.length} posts in regular table`);
       } catch (error) {
         console.warn('Error querying posts table:', error);
@@ -478,7 +487,7 @@ export async function getPostsByTaskId(taskId: string): Promise<any[]> {
             'SELECT * FROM Posts WHERE TaskId = ?',
             [taskId]
           );
-          posts = capitalizedResult as any[];
+          posts = capitalizedResult as (RowDataPacket & PostData)[];
           console.log(`Found ${posts.length} posts in capitalized table`);
         } catch (capitalizedError) {
           console.warn('Error querying Posts (capitalized) table:', capitalizedError);

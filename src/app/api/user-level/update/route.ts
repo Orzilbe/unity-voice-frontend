@@ -9,8 +9,8 @@ import jwt from 'jsonwebtoken';
 async function verifyAuthToken(token: string): Promise<{ userId: string } | null> {
   try {
     const secretKey = process.env.JWT_SECRET || 'default_secret_key';
-    const decoded = jwt.verify(token, secretKey) as any;
-    return { userId: decoded.userId || decoded.id };
+    const decoded = jwt.verify(token, secretKey) as { userId?: string; id?: string };
+    return { userId: decoded.userId || decoded.id || '' };
   } catch (error) {
     console.error('Error verifying token:', error);
     return null;
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json();
     console.log('Update request data:', requestData);
     
-    const { topicName, currentLevel, earnedScore, taskId, isCompleted } = requestData;
+    const { topicName, currentLevel, earnedScore, isCompleted } = requestData;
     
     // Validate required data
     if (!topicName || currentLevel === undefined) {
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
       // Begin transaction
       await pool.query('START TRANSACTION');
       
-      // Calculate score
-      let finalScore = earnedScore || 0;
+      // Calculate final score for this level
+      const finalScore = earnedScore || 0;
       
       // If task is completed, mark completion date
       const completedAt = isCompleted ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null;
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         [userId, topicName, currentLevel]
       );
       
-      const existingLevels = existingLevelRows as any[];
+      const existingLevels = existingLevelRows as { EarnedScore?: number }[];
       
       if (existingLevels.length === 0) {
         // Create new user level record
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
           [userId, topicName, nextLevel]
         );
         
-        if ((nextLevelRows as any[]).length === 0) {
+        if ((nextLevelRows as { EarnedScore?: number }[]).length === 0) {
           console.log(`Creating next level ${nextLevel} for user ${userId} in topic ${topicName}`);
           
           // Create next level

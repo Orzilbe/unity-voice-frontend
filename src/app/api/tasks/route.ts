@@ -1,7 +1,7 @@
 // apps/web/src/app/api/tasks/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { createTask, markTaskComplete, addWordsToTask, getUserTasks, updateTaskWithDuration } from '../services/taskService';
+import { createTask, markTaskComplete, addWordsToTask, getUserTasks } from '../services/taskService';
 
 /**
  * פונקציה לחילוץ מזהה משתמש מהטוקן
@@ -11,16 +11,16 @@ function getUserIdFromToken(token: string): string | null {
     // הוספת לוג לדיבוג
     console.log(`מנסה לפענח טוקן: ${token.slice(0, 15)}...`);
     
-    let decoded;
+    let decoded: { userId?: string; sub?: string; id?: string };
     try {
       // ניסיון לפענח עם המפתח הסודי המוגדר
-      decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; sub?: string; id?: string };
     } catch (verifyError) {
       console.error('שגיאת אימות טוקן רגילה:', verifyError);
       // נסה גם עם מפתח משני במידה וקיים
       if (process.env.SECONDARY_JWT_SECRET) {
         try {
-          decoded = jwt.verify(token, process.env.SECONDARY_JWT_SECRET) as any;
+          decoded = jwt.verify(token, process.env.SECONDARY_JWT_SECRET) as { userId?: string; sub?: string; id?: string };
         } catch (secondaryError) {
           console.error('שגיאת אימות גם עם המפתח המשני:', secondaryError);
           return null;
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     const taskType = body.taskType || body.TaskType || 'flashcard';
     
     // שימוש במזהה המשתמש מהטוקן אם לא סופק
-    let userId = providedUserId || authResult.userId;
+    const userId = providedUserId || authResult.userId;
     
     // וידוא שמשתמש רשאי ליצור משימות רק לעצמו
     if (providedUserId && providedUserId !== authResult.userId) {
@@ -144,8 +144,6 @@ export async function POST(request: NextRequest) {
     });
   }
 }
-
-
 
 /**
  * עדכון משימה - PUT /api/tasks

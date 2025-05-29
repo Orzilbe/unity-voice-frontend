@@ -1,9 +1,7 @@
-// src/app/api/services/fallbackService.ts
-import fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-// Define interfaces for our data types
 interface Word {
   WordId?: string;
   Word: string;
@@ -29,27 +27,26 @@ interface Task {
 // Helper function to ensure directory exists
 async function ensureDirectoryExists(directoryPath: string) {
   try {
+    await fs.access(directoryPath);
+  } catch {
     await fs.mkdir(directoryPath, { recursive: true });
-  } catch (error) {
-    console.error(`Error creating directory ${directoryPath}:`, error);
   }
 }
 
-// Get data directory path
 function getDataDir() {
-  // Check if we're in production or development
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  // In production, use a dedicated data directory
-  // In development, use a local directory in the project
-  const baseDir = isProduction ? 
-    path.join(process.cwd(), '..', 'data') : 
-    path.join(process.cwd(), 'data');
-    
-  return baseDir;
+  // Use a platform-specific data directory
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || process.cwd(), 'unity-voice-data');
+  } else {
+    return path.join(
+      process.env.HOME || process.cwd(),
+      '.local',
+      'share',
+      'unity-voice-data'
+    );
+  }
 }
 
-// Get file path for a specific data type
 function getFilePath(dataType: string) {
   return path.join(getDataDir(), `${dataType}.json`);
 }
@@ -57,23 +54,14 @@ function getFilePath(dataType: string) {
 // Read data from a local JSON file
 async function readLocalData<T>(dataType: string): Promise<T[]> {
   try {
-    const dataDir = getDataDir();
-    await ensureDirectoryExists(dataDir);
-    
     const filePath = getFilePath(dataType);
-    
-    try {
-      const data = await fs.readFile(filePath, 'utf8');
-      return JSON.parse(data) as T[];
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        // File doesn't exist yet, return empty array
-        await fs.writeFile(filePath, JSON.stringify([]), 'utf8');
-        return [];
-      }
-      throw error;
-    }
+    const data = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(data) as T[];
   } catch (error) {
+    // If file doesn't exist or is corrupted, return empty array
+    if (error instanceof Error && 'code' in error && (error as unknown as { code: string }).code === 'ENOENT') {
+      return [];
+    }
     console.error(`Error reading ${dataType} data:`, error);
     return [];
   }
@@ -95,7 +83,7 @@ async function writeLocalData<T>(dataType: string, data: T[]): Promise<boolean> 
 }
 
 // Words-specific functions
-export async function getLocalWords(topicName: string, level: string): Promise<Word[]> {
+export async function getLocalWords(topicName: string): Promise<Word[]> {
   try {
     const words = await readLocalData<Word>('words');
     return words.filter(word => 
@@ -168,7 +156,7 @@ export async function createLocalTask(task: Omit<Task, 'TaskId' | 'CreationDate'
     // Add to existing tasks
     const updatedTasks = [...existingTasks, newTask];
     
-    const success = await writeLocalData<Task>('tasks', updatedTasks);
+    await writeLocalData<Task>('tasks', updatedTasks);
     return taskId;
   } catch (error) {
     console.error('Error creating local task:', error);
@@ -263,4 +251,4 @@ export async function getLocalWordsForTask(taskId: string): Promise<string[]> {
     console.error('Error getting words for task locally:', error);
     return [];
   }
-}
+} 

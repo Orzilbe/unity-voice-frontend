@@ -15,7 +15,25 @@ interface ExportData {
     exportedBy: string;
     format: string;
   };
-  data: Record<string, any>;
+  data: Record<string, unknown>;
+}
+
+interface TopicData {
+  TopicName: string;
+  TopicHe: string;
+  total_tasks: number;
+  completed_tasks: number;
+  avg_score: number;
+}
+
+interface UserStats {
+  total_users: number;
+  active_users: number;
+  average_score: number;
+  total_tasks: number;
+  completed_tasks: number;
+  total_words: number;
+  last_updated: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -90,7 +108,7 @@ export async function GET(request: NextRequest) {
     // ארגון הנתונים לפי קטגוריות
     (response.result as ExportResult[])?.forEach(item => {
       try {
-        exportData.data[item.category] = JSON.parse(item.data);
+        exportData.data[item.category] = JSON.parse(item.data) as UserStats | TopicData[];
       } catch (e) {
         console.error('Error parsing data for category:', item.category, e);
       }
@@ -120,7 +138,7 @@ export async function GET(request: NextRequest) {
 }
 
 // פונקציה להמרת נתונים ל-CSV (דוגמה בסיסית)
-function convertToCSV(data: any): string {
+function convertToCSV(data: ExportData): string {
   let csv = '';
   
   // הוספת מטא-דטא
@@ -131,7 +149,8 @@ function convertToCSV(data: any): string {
   // הוספת נתוני משתמשים
   if (data.data.user_stats) {
     csv += '=== User Statistics ===' + '\n';
-    Object.entries(data.data.user_stats).forEach(([key, value]) => {
+    const userStats = data.data.user_stats as UserStats;
+    Object.entries(userStats).forEach(([key, value]) => {
       csv += `${key},${value}\n`;
     });
     csv += '\n';
@@ -141,7 +160,8 @@ function convertToCSV(data: any): string {
   if (data.data.topics && Array.isArray(data.data.topics)) {
     csv += '=== Topics Overview ===' + '\n';
     csv += 'Topic Name,Topic (Hebrew),Total Tasks,Completed Tasks,Average Score\n';
-    data.data.topics.forEach((topic: any) => {
+    const topics = data.data.topics as TopicData[];
+    topics.forEach((topic: TopicData) => {
       csv += `${topic.TopicName},${topic.TopicHe},${topic.total_tasks},${topic.completed_tasks},${topic.avg_score}\n`;
     });
   }

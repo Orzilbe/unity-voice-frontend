@@ -26,7 +26,7 @@ async function getDbConnection() {
 // Function to extract user ID from token
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);

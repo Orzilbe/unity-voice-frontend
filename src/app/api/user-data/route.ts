@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       
       const userData = await response.json();
       return NextResponse.json(userData);
-    } catch (error) {
+    } catch {
       // Use mock data for development or when backend fails
       console.log('Using mock user data');
       
@@ -48,10 +48,9 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json(mockUserData);
     }
-  } catch (error) {
-    console.error('Error in /api/user-data route:', error);
+  } catch {
     return NextResponse.json(
-      { message: 'Failed to fetch user data', error: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Database error occurred' },
       { status: 500 }
     );
   }

@@ -4,10 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import { createQuestion } from '../../lib/dbUtils';
 
-// פונקציה לחילוץ מזהה המשתמש מהטוקן
+// Function to extract user ID from token
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -19,9 +19,9 @@ function getUserIdFromToken(token: string): string | null {
  * יצירת שאלה חדשה
  */
 export async function POST(request: NextRequest) {
-  console.log('POST /api/question - Request received');
+  console.log("POST /api/question - Creating question");
   
-  let body: any;
+  let body: { SessionId?: string; QuestionText?: string; sessionId?: string; questionText?: string; QuestionId?: string } = {};
   
   try {
     // בדיקת אימות

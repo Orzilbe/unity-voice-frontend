@@ -63,9 +63,12 @@ export async function PATCH(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ taskId: string }> }
-) {
-  // Implementation of PUT method
+export async function PUT() {
+  // Implementation of PUT method will be added when needed
+  return new Response('Method not implemented', { status: 501 });
+}
+
+export async function DELETE() {
+  // Implementation of DELETE method will be added when needed
+  return new Response('Method not implemented', { status: 501 });
 }

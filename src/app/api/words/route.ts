@@ -5,15 +5,29 @@ import jwt from 'jsonwebtoken';
 import { getSafeDbPool } from '../../lib/db';
 import { generateWords } from '../services/openai';
 import { saveWords } from '../services/wordService';
-import { formatTopicNameForDb, formatTopicNameForUrl, areTopicNamesEquivalent } from '../../lib/topicUtils';
+import { formatTopicNameForDb, areTopicNamesEquivalent } from '../../lib/topicUtils';
 import { getSmartFilteredWords } from '../../services/getFilteredWords';
+import { RowDataPacket } from '../../../types';
+
+interface WordData {
+  id?: number;
+  WordId?: string;
+  Word: string;
+  Definition?: string;
+  TopicName: string;
+  EnglishLevel: string;
+  Translation?: string;
+  Example?: string;
+  ExampleUsage?: string;
+  [key: string]: unknown;
+}
 
 /**
  * Function to extract user ID from token
  */
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -27,7 +41,7 @@ function getUserIdFromToken(token: string): string | null {
  * @param randomLimit Number of words to return or null for default behavior (5-7 words)
  * @returns A random subset of words
  */
-function getRandomSubset(words: any[], randomLimit: number | null = null): any[] {
+function getRandomSubset(words: WordData[], randomLimit: number | null = null): WordData[] {
   if (!words || words.length === 0) return [];
   
   // If no randomLimit specified, use a random number between 5-7
@@ -72,8 +86,11 @@ async function verifyAuth(request: NextRequest): Promise<{ isValid: boolean; use
           [userId]
         );
         
-        if (Array.isArray(rows) && rows.length > 0 && (rows[0] as any).EnglishLevel) {
-          englishLevel = (rows[0] as any).EnglishLevel;
+        if (Array.isArray(rows) && rows.length > 0) {
+          const user = rows[0] as RowDataPacket & { EnglishLevel: string };
+          if (user.EnglishLevel) {
+            englishLevel = user.EnglishLevel;
+          }
         }
       }
     } catch (error) {
@@ -97,7 +114,7 @@ export async function GET(request: NextRequest) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    let topic = searchParams.get('topic');
+    const topic = searchParams.get('topic');
     
     // Get level from query params as a fallback
     const rawLevel = searchParams.get('level') || 'advanced';
@@ -219,7 +236,7 @@ export async function GET(request: NextRequest) {
             console.log(`Retrieved ${dbTopicRows.length} words using DB format topic name`);
             
             // Ensure all words have consistent topic name format
-            const normalizedWords = (dbTopicRows as any[]).map(word => ({
+            const normalizedWords = (dbTopicRows as (RowDataPacket & WordData)[]).map(word => ({
               ...word,
               TopicName: dbTopicName // Ensure consistent format
             }));
@@ -245,7 +262,7 @@ export async function GET(request: NextRequest) {
             console.log(`Retrieved ${urlTopicRows.length} words using URL format topic name`);
             
             // Normalize to DB format
-            const normalizedWords = (urlTopicRows as any[]).map(word => ({
+            const normalizedWords = (urlTopicRows as (RowDataPacket & WordData)[]).map(word => ({
               ...word,
               TopicName: dbTopicName // Ensure consistent format
             }));
@@ -267,7 +284,7 @@ export async function GET(request: NextRequest) {
           
           if (Array.isArray(allTopicRows)) {
             // Filter for words with equivalent topic names
-            const matchingWords = (allTopicRows as any[]).filter(word => 
+            const matchingWords = (allTopicRows as (RowDataPacket & WordData)[]).filter(word => 
               word.TopicName && areTopicNamesEquivalent(word.TopicName, topic || '')
             );
             
@@ -344,9 +361,9 @@ export async function GET(request: NextRequest) {
       // Apply random selection if randomLimit is specified
       if (Array.isArray(allWords)) {
         const selectedWords = randomLimit || randomLimit === 0 ? 
-          getRandomSubset(allWords as any[], randomLimit) : allWords;
+          getRandomSubset(allWords as (RowDataPacket & WordData)[], randomLimit) : allWords;
         
-        console.log(`Returning ${selectedWords.length} randomly selected words from ${(allWords as any[]).length} available`);
+        console.log(`Returning ${selectedWords.length} randomly selected words from ${(allWords as RowDataPacket[]).length} available`);
         return NextResponse.json(selectedWords);
       }
       

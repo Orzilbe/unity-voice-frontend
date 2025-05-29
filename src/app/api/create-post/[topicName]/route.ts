@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
 import { AzureOpenAI  } from 'openai';
 
+interface WordData {
+  Word: string;
+  [key: string]: unknown;
+}
+
 // יצירת לקוח OpenAI
 const openai = new AzureOpenAI({
   apiKey: process.env.AZURE_OPENAI_API_KEY!,
@@ -78,23 +83,26 @@ async function getUserEnglishLevel(token: string): Promise<string> {
 // קבלת מילים שהמשתמש למד
 async function getUserLearnedWords(token: string, topicName: string): Promise<string[]> {
   try {
-    const response = await fetch(`${API_URL}/api/words/learned?topic=${encodeURIComponent(topicName)}`, {
-      method: 'GET',
+    console.log('Fetching learned words for user and topic:', topicName);
+    
+    // שליחת בקשה לקבלת המילים שהמשתמש למד
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/words/learned?topic=${encodeURIComponent(topicName)}`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
-
+    
     if (!response.ok) {
-      console.error(`Failed to get learned words: ${response.status}`);
+      console.warn('Failed to fetch learned words, using empty array');
       return []; // מערך ריק במקרה של כישלון
     }
 
-    const data = await response.json();
+    const data = await response.json() as { success: boolean; data: WordData[] };
     
     // שליפת המילים מתוך התשובה
     if (data.success && Array.isArray(data.data)) {
-      return data.data.map((item: any) => item.Word);
+      return data.data.map((item: WordData) => item.Word);
     }
     
     return [];
@@ -372,7 +380,7 @@ try {
   return NextResponse.json(getFallbackPost(resolvedParams.topicName));
 }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in create-post API route:", error);
     
     // במקרה של שגיאה כללית, החזר פוסט גנרי

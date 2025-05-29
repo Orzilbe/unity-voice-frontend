@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../auth/verifyAuth';
 import { getSafeDbPool } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { RowDataPacket } from 'mysql2';
+
+interface PostRow extends RowDataPacket {
+  PostID: string;
+}
 
 /**
  * יצירת תגובה חדשה - POST /api/comments
@@ -65,11 +70,11 @@ export async function POST(request: NextRequest) {
       console.log(`Verifying post ${postId} exists...`);
       const [postRows] = await pool.query('SELECT 1 FROM posts WHERE PostID = ?', [postId]);
       
-      if (!Array.isArray(postRows) || (postRows as any[]).length === 0) {
+      if (!Array.isArray(postRows) || (postRows as PostRow[]).length === 0) {
         // אם הפוסט לא קיים בטבלה הרגילה, נבדוק בטבלה עם אות גדולה
         const [capitalizedRows] = await pool.query('SELECT 1 FROM Posts WHERE PostID = ?', [postId]);
         
-        if (!Array.isArray(capitalizedRows) || (capitalizedRows as any[]).length === 0) {
+        if (!Array.isArray(capitalizedRows) || (capitalizedRows as PostRow[]).length === 0) {
           console.error(`Post ${postId} does not exist in either posts or Posts table`);
           
           // במקום להחזיר שגיאה, ננסה ליצור את הפוסט אם קיבלנו TaskId
@@ -117,7 +122,7 @@ export async function POST(request: NextRequest) {
         console.log('Comment saved successfully in comments table');
       } catch (insertError) {
         // אם השגיאה היא duplicate key, ננסה לעדכן במקום להוסיף
-        if ((insertError as any).code === 'ER_DUP_ENTRY') {
+        if ((insertError as { code?: string }).code === 'ER_DUP_ENTRY') {
           console.log('Comment already exists, updating instead');
           
           try {
@@ -226,12 +231,12 @@ export async function GET(request: NextRequest) {
         [postId]
       );
       
-      const comments = commentsResult as any[];
+      const comments = commentsResult as RowDataPacket[];
       console.log(`Found ${comments.length} comments for post ${postId}`);
       console.groupEnd();
       
       return NextResponse.json(comments);
-    } catch (tableErr) {
+    } catch {
       // ניסיון עם טבלה עם אות ראשונה גדולה
       try {
         const [capitalizedResult] = await pool.query(
@@ -239,7 +244,7 @@ export async function GET(request: NextRequest) {
           [postId]
         );
         
-        const comments = capitalizedResult as any[];
+        const comments = capitalizedResult as RowDataPacket[];
         console.log(`Found ${comments.length} comments for post ${postId} in capitalized table`);
         console.groupEnd();
         

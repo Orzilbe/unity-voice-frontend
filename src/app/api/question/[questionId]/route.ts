@@ -6,7 +6,7 @@ import { updateQuestion } from '../../../lib/dbUtils';
 // פונקציה לחילוץ מזהה המשתמש מהטוקן
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);

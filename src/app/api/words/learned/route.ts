@@ -3,14 +3,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getSafeDbPool } from '../../../lib/db';
-import { formatTopicNameForDb, formatTopicNameForUrl, areTopicNamesEquivalent } from '../../../lib/topicUtils';
+import { formatTopicNameForDb } from '../../../lib/topicUtils';
+import { RowDataPacket } from '../../../../types';
+
+interface WordData {
+  WordId: string;
+  Word: string;
+  Definition: string;
+  TopicName: string;
+  EnglishLevel: string;
+  [key: string]: unknown;
+}
 
 /**
  * Function to extract user ID from token
  */
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -43,8 +53,8 @@ async function verifyAuth(request: NextRequest): Promise<{ isValid: boolean; use
           [userId]
         );
         
-        if (Array.isArray(rows) && rows.length > 0 && (rows[0] as any).EnglishLevel) {
-          englishLevel = (rows[0] as any).EnglishLevel;
+        if (Array.isArray(rows) && rows.length > 0 && (rows[0] as RowDataPacket & { EnglishLevel: string }).EnglishLevel) {
+          englishLevel = (rows[0] as RowDataPacket & { EnglishLevel: string }).EnglishLevel;
         }
       }
     } catch (error) {
@@ -208,7 +218,7 @@ export async function GET(request: NextRequest) {
       }
       
       // Normalize all learned words to use the consistent DB format for topic name
-      const normalizedLearnedWords = (learnedWords as any[]).map(word => ({
+      const normalizedLearnedWords = (learnedWords as (RowDataPacket & WordData)[]).map(word => ({
         ...word,
         TopicName: dbTopicName // Ensure consistent format
       }));

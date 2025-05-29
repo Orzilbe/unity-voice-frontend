@@ -6,7 +6,7 @@ import { getSafeDbPool } from '../../lib/db';
 // Function to extract user ID from token
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -69,7 +69,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userData = rows[0] as any;
+    const userData = rows[0] as {
+      UserId: number;
+      FirstName: string;
+      LastName: string;
+      Email: string;
+      PhoneNumber: string;
+      EnglishLevel: string;
+      AgeRange: string;
+      ProfilePicture: string | null;
+      CreationDate: Date;
+      LastLogin: Date | null;
+      Score: number;
+    };
     
     // Return user profile with all necessary fields
     return NextResponse.json({

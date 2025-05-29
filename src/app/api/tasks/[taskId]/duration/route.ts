@@ -1,13 +1,6 @@
 // apps/web/src/app/api/tasks/[taskId]/duration/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { updateTaskDuration } from '../../../services/userLevel';
-import jwt from 'jsonwebtoken';
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  exp?: number;
-}
+import { updateTaskWithDuration } from '../../../services/taskService';
 
 export async function PATCH(
   request: NextRequest,
@@ -16,17 +9,6 @@ export async function PATCH(
   try {
     const resolvedParams = await params;
     const taskId = resolvedParams.taskId;
-    
-    // Get auth token
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-    
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     // Get request body
     const body = await request.json();
@@ -40,7 +22,7 @@ export async function PATCH(
     }
     
     // עדכון משך המשימה
-    const success = await updateTaskDuration(taskId, body.duration);
+    const success = await updateTaskWithDuration(taskId, 100, body.duration);
     
     if (!success) {
       return NextResponse.json(

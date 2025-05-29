@@ -2,6 +2,7 @@
 
 import { getSafeDbPool } from '../../lib/db';
 import { GeneratedWord } from './openai';
+import { RowDataPacket } from '../../../types';
 
 /**
  * Save generated words to the database
@@ -37,9 +38,10 @@ export async function saveWords(words: GeneratedWord[]): Promise<GeneratedWord[]
         
         if (Array.isArray(existingWords) && existingWords.length > 0) {
           // Word exists, add to saved list and continue
+          const existingWordRow = (existingWords[0] as RowDataPacket & { WordId: string });
           savedWords.push({
             ...word,
-            WordId: (existingWords[0] as any).WordId
+            WordId: existingWordRow.WordId
           });
           continue;
         }
@@ -110,7 +112,14 @@ export async function getWordsByTopicAndLevel(
     }
     
     // Convert to GeneratedWord format
-    return (rows as any[]).map(row => ({
+    return (rows as (RowDataPacket & {
+      WordId: string;
+      Word: string;
+      Translation: string;
+      ExampleUsage: string;
+      TopicName: string;
+      EnglishLevel: string;
+    })[]).map(row => ({
       WordId: row.WordId,
       Word: row.Word,
       Translation: row.Translation,
@@ -124,7 +133,9 @@ export async function getWordsByTopicAndLevel(
   }
 }
 
-export default {
+const wordService = {
   saveWords,
   getWordsByTopicAndLevel
 };
+
+export default wordService;

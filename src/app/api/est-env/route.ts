@@ -1,7 +1,9 @@
 // src/app/api/test-env/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   // Collect environment variables (redacting sensitive information)
   const envVars = {
     // Database config
@@ -29,8 +31,6 @@ export async function GET(request: NextRequest) {
   // Test for SSL certificate file
   let sslCertStatus = 'Not checked';
   try {
-    const fs = require('fs');
-    const path = require('path');
     const sslCertPath = path.join(process.cwd(), 'src/config/DigiCertGlobalRootCA.crt.pem');
     
     if (fs.existsSync(sslCertPath)) {

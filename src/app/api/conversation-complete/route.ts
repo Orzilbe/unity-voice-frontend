@@ -2,7 +2,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { getSafeDbPool } from '../../lib/db';
 import { updateTaskWithDuration, markTaskComplete, handleConversationTaskCompletion } from '../services/taskService';
 
 /**
@@ -11,8 +10,8 @@ import { updateTaskWithDuration, markTaskComplete, handleConversationTaskComplet
 async function verifyAuthToken(token: string): Promise<{ userId: string } | null> {
   try {
     const secretKey = process.env.JWT_SECRET || 'default_secret_key';
-    const decoded = jwt.verify(token, secretKey) as any;
-    return { userId: decoded.userId || decoded.id };
+    const decoded = jwt.verify(token, secretKey) as { userId?: string; id?: string };
+    return { userId: decoded.userId || decoded.id || '' };
   } catch (error) {
     console.error('Error verifying token:', error);
     return null;

@@ -76,14 +76,15 @@ export async function GET(request: NextRequest) {
       
       const topics = await response.json();
       return NextResponse.json(topics);
-    } catch (error) {
+    } catch {
       // Use mock data for development or when backend fails
       console.log('Using mock topic data');
       return NextResponse.json(mockTopics);
     }
-  } catch (error) {
-    console.error('Error in /api/topics route:', error);
-    // Return mock data even in case of error to prevent UI failures
-    return NextResponse.json(mockTopics);
+  } catch {
+    return NextResponse.json(
+      { error: 'Database error occurred' },
+      { status: 500 }
+    );
   }
 }

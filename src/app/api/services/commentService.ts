@@ -1,6 +1,16 @@
 // apps/web/src/app/api/services/commentService.ts
 import { getSafeDbPool } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { RowDataPacket } from '../../../types';
+
+interface CommentData {
+  CommentID: string;
+  commentContent: string;
+  Feedback: string | null;
+  PostID: string;
+  CreatedAt?: string;
+  UpdatedAt?: string;
+}
 
 /**
  * יוצר תגובה חדשה
@@ -56,7 +66,7 @@ export async function createComment(
           [finalCommentId]
         );
         
-        const comments = existingComments as any[];
+        const comments = existingComments as RowDataPacket[];
         
         if (comments.length > 0) {
           // עדכון תגובה קיימת
@@ -103,9 +113,9 @@ export async function createComment(
         console.log('Comment saved successfully');
         console.groupEnd();
         return finalCommentId;
-      } catch (tableErr) {
+      } catch {
         // אם יש בעיה עם פעולות הטבלה, ננסה עם שם טבלה חלופי (עם אות ראשונה גדולה)
-        console.log('Error with default table name, trying with capitalized table name:', tableErr);
+        console.log('Error with default table name, trying with capitalized table name');
         
         try {
           // יצירת טבלה אם לא קיימת (גרסה עם אות ראשונה גדולה)
@@ -125,7 +135,7 @@ export async function createComment(
             [finalCommentId]
           );
           
-          const comments = existingComments as any[];
+          const comments = existingComments as RowDataPacket[];
           
           if (comments.length > 0) {
             // עדכון תגובה קיימת
@@ -217,7 +227,7 @@ export async function createComment(
  * @param postId מזהה הפוסט
  * @returns רשימת התגובות
  */
-export async function getCommentsByPostId(postId: string): Promise<any[]> {
+export async function getCommentsByPostId(postId: string): Promise<CommentData[]> {
   console.group(`Getting comments for post ${postId}`);
   
   try {
@@ -230,14 +240,14 @@ export async function getCommentsByPostId(postId: string): Promise<any[]> {
     
     try {
       // ניסיון למצוא תגובות בשתי הטבלאות האפשריות
-      let comments: any[] = [];
+      let comments: CommentData[] = [];
       
       try {
         const [commentsResult] = await pool.query(
           'SELECT * FROM comments WHERE PostID = ?',
           [postId]
         );
-        comments = commentsResult as any[];
+        comments = commentsResult as (RowDataPacket & CommentData)[];
         console.log(`Found ${comments.length} comments in regular table`);
       } catch (error) {
         console.warn('Error querying comments table:', error);
@@ -248,7 +258,7 @@ export async function getCommentsByPostId(postId: string): Promise<any[]> {
             'SELECT * FROM Comments WHERE PostID = ?',
             [postId]
           );
-          comments = capitalizedResult as any[];
+          comments = capitalizedResult as (RowDataPacket & CommentData)[];
           console.log(`Found ${comments.length} comments in capitalized table`);
         } catch (capitalizedError) {
           console.warn('Error querying Comments (capitalized) table:', capitalizedError);

@@ -1,7 +1,8 @@
 // apps/web/src/app/services/userLevel.ts
 
 import { getSafeDbPool } from '../../lib/db';
-import { formatTopicNameForDb, formatTopicNameForUrl, areTopicNamesEquivalent } from '../../lib/topicUtils';
+import { formatTopicNameForDb } from '../../lib/topicUtils';
+import { RowDataPacket } from '../../../types';
 
 /**
  * קבלת הרמה הגבוהה ביותר של המשתמש בנושא מסוים
@@ -28,12 +29,11 @@ export async function getUserHighestLevel(userId: string, topicName: string): Pr
     
     // לפרמט את שם הנושא באופן עקבי עבור מסד הנתונים
     const dbTopicName = formatTopicNameForDb(topicName);
-    const urlTopicName = formatTopicNameForUrl(topicName);
     
-    console.log(`getUserHighestLevel: Checking for topic formats: DB="${dbTopicName}", URL="${urlTopicName}"`);
+    console.log(`getUserHighestLevel: Checking for topic formats: DB="${dbTopicName}"`);
     
     // לוג נוסף של הפרמטרים לצורך דיבוג
-    console.log(`getUserHighestLevel: SQL parameters - userId=${userId}, dbTopicName=${dbTopicName}, urlTopicName=${urlTopicName}`);
+    console.log(`getUserHighestLevel: SQL parameters - userId=${userId}, dbTopicName=${dbTopicName}`);
     
     // בדיקה אם המשתמש קיים בטבלת userinlevel
     try {
@@ -52,7 +52,7 @@ export async function getUserHighestLevel(userId: string, topicName: string): Pr
         LIMIT 1
       `;
       
-      const params = [userId, dbTopicName, urlTopicName, dbTopicName, urlTopicName, urlTopicName, urlTopicName];
+      const params = [userId, dbTopicName, dbTopicName, dbTopicName, dbTopicName, dbTopicName, dbTopicName];
       
       console.log(`getUserHighestLevel: Executing query with params:`, params);
       
@@ -62,7 +62,7 @@ export async function getUserHighestLevel(userId: string, topicName: string): Pr
       
       // אם נמצאו תוצאות, להחזיר את הרמה הגבוהה ביותר
       if (Array.isArray(userLevelRows) && userLevelRows.length > 0) {
-        const highestLevel = parseInt((userLevelRows[0] as any).Level, 10);
+        const highestLevel = parseInt((userLevelRows[0] as RowDataPacket & { Level: string }).Level, 10);
         console.log(`getUserHighestLevel: Found user level ${highestLevel} for topic "${dbTopicName}"`);
         return highestLevel;
       }
@@ -96,7 +96,7 @@ export async function getUserHighestLevel(userId: string, topicName: string): Pr
       
       // אם נמצאו משימות שהושלמו, נחזיר את הרמה הגבוהה ביותר + 1 (אם אפשר)
       if (Array.isArray(completedTasksRows) && completedTasksRows.length > 0) {
-        const completedLevel = parseInt((completedTasksRows[0] as any).Level, 10);
+        const completedLevel = parseInt((completedTasksRows[0] as RowDataPacket & { Level: string }).Level, 10);
         // אם השלים רמה 3, הוא נשאר ברמה 3
         const nextLevel = completedLevel >= 3 ? 3 : completedLevel + 1;
         console.log(`getUserHighestLevel: Found completed tasks at level ${completedLevel}, next level is ${nextLevel}`);
@@ -148,7 +148,7 @@ export async function getUserHighestLevel(userId: string, topicName: string): Pr
       
       // אם נמצאו משימות פתוחות, נחזיר את הרמה הנמוכה ביותר
       if (Array.isArray(openTasksRows) && openTasksRows.length > 0) {
-        const openLevel = parseInt((openTasksRows[0] as any).Level, 10);
+        const openLevel = parseInt((openTasksRows[0] as RowDataPacket & { Level: string }).Level, 10);
         console.log(`getUserHighestLevel: Found open tasks at level ${openLevel}`);
         
         // עדכון טבלת userinlevel עם הרמה שהתחיל
@@ -282,7 +282,7 @@ export async function updateTaskDuration(taskId: string, duration: number): Prom
     
     // עדכון משך הזמן בטבלת Tasks
     try {
-      const [result] = await pool.query(
+      await pool.query(
         `UPDATE Tasks SET DurationTask = ? WHERE TaskId = ?`,
         [duration, taskId]
       );

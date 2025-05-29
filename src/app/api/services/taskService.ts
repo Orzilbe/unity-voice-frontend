@@ -2,16 +2,8 @@
 import { getAuthToken } from '../../lib/auth';
 import { getSafeDbPool } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
-
-// Flashcard interface definition
-interface Flashcard {
-  WordId: string;
-  Word: string;
-  Translation: string;
-  ExampleUsage: string;
-  TopicName: string;
-  StartDate?: string;
-}
+import { RowDataPacket } from '../../../types';
+import mysql, { OkPacket } from 'mysql2/promise';
 
 /**
  * המרת שם נושא מפורמט URL לפורמט מסד הנתונים
@@ -26,17 +18,9 @@ function formatTopicName(urlTopicName: string): string {
 }
 
 /**
- * המרת שם נושא מפורמט מסד הנתונים לפורמט URL
- * למשל: 'Society and Multiculturalism' -> 'society-and-multiculturalism'
- */
-function formatTopicNameForUrl(dbTopicName: string): string {
-  return dbTopicName.toLowerCase().replace(/\s+/g, '-');
-}
-
-/**
  * פונקציה לוידוא שהנושא והרמה קיימים
  */
-async function ensureTopicLevelExists(connection: any, urlTopicName: string, levelNum: number): Promise<boolean> {
+async function ensureTopicLevelExists(connection: mysql.PoolConnection, urlTopicName: string, levelNum: number): Promise<boolean> {
   try {
     // המרת שם הנושא מפורמט URL לפורמט מסד הנתונים
     const dbTopicName = formatTopicName(urlTopicName);
@@ -59,7 +43,7 @@ async function ensureTopicLevelExists(connection: any, urlTopicName: string, lev
       
       if (Array.isArray(similarTopics) && similarTopics.length > 0) {
         // מצאנו נושא דומה, נשתמש בו
-        const foundTopic = (similarTopics[0] as any).TopicName;
+        const foundTopic = (similarTopics[0] as RowDataPacket & { TopicName: string }).TopicName;
         console.log(`Found similar topic: ${foundTopic} instead of ${dbTopicName}`);
         return await checkLevelExists(connection, foundTopic, levelNum);
       } else {
@@ -80,7 +64,7 @@ async function ensureTopicLevelExists(connection: any, urlTopicName: string, lev
 /**
  * פונקציה לבדיקה אם רמה קיימת (הופרדה לפונקציה נפרדת)
  */
-async function checkLevelExists(connection: any, dbTopicName: string, levelNum: number): Promise<boolean> {
+async function checkLevelExists(connection: mysql.PoolConnection, dbTopicName: string, levelNum: number): Promise<boolean> {
   try {
     // בדיקה אם הרמה קיימת בטבלת levels
     const [levelRows] = await connection.query(
@@ -93,7 +77,7 @@ async function checkLevelExists(connection: any, dbTopicName: string, levelNum: 
       
       // בדיקת מבנה טבלת levels
       const [columnsResult] = await connection.query('SHOW COLUMNS FROM levels');
-      const columns = columnsResult as any[];
+      const columns = columnsResult as (RowDataPacket & { Field: string })[];
       
       if (columns.length < 2) {
         console.error('Invalid levels table structure');
@@ -103,7 +87,7 @@ async function checkLevelExists(connection: any, dbTopicName: string, levelNum: 
       // יצירת מחרוזת השאילתה בהתאם למבנה הטבלה
       let insertQuery = 'INSERT INTO levels (TopicName, Level';
       let valuesQuery = 'VALUES (?, ?';
-      let params = [dbTopicName, levelNum];
+      const params: unknown[] = [dbTopicName, levelNum];
       
       // הוספת העמודה השלישית אם קיימת (לפי הנתונים שלך, זה 150)
       if (columns.length >= 3) {
@@ -161,7 +145,7 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
         [taskId, userId]
       );
       
-      const tasks = taskRows as any[];
+      const tasks = taskRows as (RowDataPacket & { TopicName: string; Level: number })[];
       if (!Array.isArray(tasks) || tasks.length === 0) {
         console.error(`Task ${taskId} not found for user ${userId}`);
         await connection.rollback();
@@ -178,7 +162,7 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
         [userId, TopicName]
       );
       
-      const userLevels = userLevelRows as any[];
+      const userLevels = userLevelRows as (RowDataPacket & { Id: number; Level: number })[];
       if (!Array.isArray(userLevels) || userLevels.length === 0) {
         console.warn(`No open user level record found for user ${userId}, topic ${TopicName}. Creating new one.`);
         
@@ -201,7 +185,7 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
           return false;
         }
         
-        userLevels[0] = newLevelRows[0];
+        userLevels[0] = newLevelRows[0] as RowDataPacket & { Id: number; Level: number };
         console.log(`Created new user level record with ID: ${userLevels[0].Id}`);
       }
       
@@ -216,7 +200,7 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
         [userId, TopicName, currentLevel]
       );
       
-      const totalScore = (scoreRows as any[])[0]?.TotalScore || 0;
+      const totalScore = (scoreRows as (RowDataPacket & { TotalScore: number | null })[])[0]?.TotalScore || 0;
       console.log(`Calculated total score for level ${currentLevel}: ${totalScore}`);
       
       // 4. עדכון הרשומה הנוכחית - סימון כהושלמה ועדכון הניקוד
@@ -297,14 +281,10 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
 }
 
 /**
- * עדכון משימה עם משך זמן מפורש
- * @param taskId מזהה המשימה
- * @param score ציון המשימה
- * @param duration משך הזמן בשניות
- * @returns תוצאת העדכון (האם הצליח)
+ * עדכון משימה עם משך זמן וציון
  */
 export async function updateTaskWithDuration(taskId: string, score: number, duration: number): Promise<boolean> {
-  console.group(`Updating task ${taskId} with score ${score} and duration ${duration}s`);
+  console.group(`Updating task ${taskId} with score ${score} and duration ${duration}`);
   
   try {
     const pool = await getSafeDbPool();
@@ -314,52 +294,32 @@ export async function updateTaskWithDuration(taskId: string, score: number, dura
       return false;
     }
     
-    // Check if task exists first
-    console.log(`Verifying task ${taskId} exists in database`);
-    const [taskCheck] = await pool.query('SELECT TaskId FROM tasks WHERE TaskId = ?', [taskId]);
-    const tasks = taskCheck as any[];
-    
-    if (!Array.isArray(tasks) || tasks.length === 0) {
-      console.error(`Task ${taskId} not found in database`);
+    try {
+      const completionDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
       
-      // Debug log to see what tasks do exist (helps identify case sensitivity issues)
-      const [allTasks] = await pool.query('SELECT TaskId FROM tasks LIMIT 5');
-      console.log('Sample of existing tasks:', allTasks);
+      // ניסיון 1: עדכון חיפוש רגיל
+      const [result] = await pool.query(
+        'UPDATE tasks SET CompletionDate = ?, TaskScore = ?, DurationTask = ? WHERE TaskId = ?',
+        [completionDate, score, duration, taskId]
+      );
       
-      console.groupEnd();
-      return false;
-    }
-    
-    const completionDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    
-    // Log the exact SQL that will be executed
-    const sql = 'UPDATE tasks SET CompletionDate = ?, TaskScore = ?, DurationTask = ? WHERE TaskId = ?';
-    const params = [completionDate, score, duration, taskId];
-    console.log('Executing SQL:', sql);
-    console.log('With parameters:', params);
-    
-    // Update the task
-    const [result] = await pool.query(sql, params);
-    
-    // Check if update was successful
-    const affectedRows = (result as any).affectedRows || 0;
-    console.log(`Update result: ${affectedRows} rows affected`);
-    
-    if (affectedRows > 0) {
-      console.log(`Successfully updated task ${taskId}`);
-      console.groupEnd();
-      return true;
-    } else {
-      // If no rows affected, try a case-insensitive match
-      console.warn(`No rows affected when updating task ${taskId}, trying case-insensitive match`);
+      const affectedRows = (result as OkPacket).affectedRows || 0;
+      console.log(`Update result: ${affectedRows} rows affected`);
       
-      // This is a workaround for potential case sensitivity issues
+      if (affectedRows > 0) {
+        console.log(`Successfully updated task ${taskId}`);
+        console.groupEnd();
+        return true;
+      }
+      
+      // ניסיון 2: חיפוש case-insensitive
+      console.log('Attempting case-insensitive update');
       const [ciResult] = await pool.query(
         'UPDATE tasks SET CompletionDate = ?, TaskScore = ?, DurationTask = ? WHERE LOWER(TaskId) = LOWER(?)',
         [completionDate, score, duration, taskId]
       );
       
-      const ciAffectedRows = (ciResult as any).affectedRows || 0;
+      const ciAffectedRows = (ciResult as OkPacket).affectedRows || 0;
       console.log(`Case-insensitive update result: ${ciAffectedRows} rows affected`);
       
       if (ciAffectedRows > 0) {
@@ -369,6 +329,10 @@ export async function updateTaskWithDuration(taskId: string, score: number, dura
       }
       
       console.warn(`No rows affected when updating task ${taskId}, even with case-insensitive match`);
+      console.groupEnd();
+      return false;
+    } catch (error) {
+      console.error('Error in database operation:', error);
       console.groupEnd();
       return false;
     }
@@ -402,7 +366,7 @@ export async function createTask(userId: string, topicName: string, level: strin
     try {
       // Check if user exists
       const [userRows] = await connection.query('SELECT UserId FROM users WHERE UserId = ?', [userId]);
-      const users = userRows as any[];
+      const users = userRows as RowDataPacket[];
       
       if (users.length === 0) {
         console.error(`User ${userId} not found in users table`);
@@ -429,9 +393,10 @@ export async function createTask(userId: string, topicName: string, level: strin
       );
       
       if (Array.isArray(existingTasks) && existingTasks.length > 0) {
-        console.log(`Found existing incomplete task: ${(existingTasks[0] as any).TaskId}`);
+        const taskId = (existingTasks[0] as RowDataPacket & { TaskId: string }).TaskId;
+        console.log(`Found existing incomplete task: ${taskId}`);
         await connection.commit();
-        return (existingTasks[0] as any).TaskId;
+        return taskId;
       }
       
       // Create new task - שימוש בשם הנושא המותאם למסד הנתונים
@@ -444,7 +409,7 @@ export async function createTask(userId: string, topicName: string, level: strin
         [taskId, userId, dbTopicName, levelNum, taskType]
       );
       
-      if (!result || (result as any).affectedRows !== 1) {
+      if (!result || (result as OkPacket).affectedRows !== 1) {
         throw new Error('Failed to create task');
       }
       
@@ -483,7 +448,14 @@ export async function markTaskComplete(taskId: string, score: number): Promise<b
         'SELECT TaskId, UserId, TopicName, Level, TaskType, StartDate FROM tasks WHERE TaskId = ?', 
         [taskId]
       );
-      const tasks = taskRows as any[];
+      const tasks = taskRows as (RowDataPacket & {
+        TaskId: string;
+        UserId: string;
+        TopicName: string;
+        Level: number;
+        TaskType: string;
+        StartDate: Date;
+      })[];
       
       if (tasks.length === 0) {
         console.error(`Task ${taskId} not found`);
@@ -552,7 +524,7 @@ export async function addWordsToTask(taskId: string, wordIds: string[]): Promise
     try {
       // בדיקה אם הטבלה קיימת
       const [tables] = await pool.query('SHOW TABLES LIKE ?', ['wordintask']);
-      const tablesArray = tables as any[];
+      const tablesArray = tables as RowDataPacket[];
       
       if (tablesArray.length === 0) {
         console.log('wordintask table does not exist, creating it');
@@ -567,7 +539,7 @@ export async function addWordsToTask(taskId: string, wordIds: string[]): Promise
       } else {
         // בדיקה אם חסר עמודת AddedAt
         const [columns] = await pool.query('SHOW COLUMNS FROM wordintask LIKE ?', ['AddedAt']);
-        const columnsArray = columns as any[];
+        const columnsArray = columns as RowDataPacket[];
         
         if (columnsArray.length === 0) {
           console.log('Adding AddedAt column to wordintask table');
@@ -613,7 +585,7 @@ export async function addWordsToTask(taskId: string, wordIds: string[]): Promise
  * @param learnedWords מערך של מילים שנלמדו (אובייקטים או מזהים)
  * @returns תוצאת הפעולה
  */
-export async function saveWordsToTask(taskId: string, learnedWords: any[]): Promise<{ success: boolean, data?: any, reason?: string }> {
+export async function saveWordsToTask(taskId: string, learnedWords: Array<string | { WordId: string }>): Promise<{ success: boolean, data?: Record<string, unknown>, reason?: string }> {
   try {
     console.log(`Saving ${learnedWords.length} words to task ${taskId}`);
     
@@ -640,7 +612,7 @@ export async function saveWordsToTask(taskId: string, learnedWords: any[]): Prom
       } else if (typeof learnedWords[0] === 'object') {
         // אם קיבלנו מערך של אובייקטים עם מזהים
         wordIds = learnedWords
-          .filter(word => word && word.WordId)
+          .filter((word): word is { WordId: string } => word !== null && typeof word === 'object' && 'WordId' in word)
           .map(word => word.WordId);
       }
     }
@@ -677,11 +649,11 @@ export async function saveWordsToTask(taskId: string, learnedWords: any[]): Prom
     }
     
     // פענוח התשובה
-    const data = await response.json();
+    const data = await response.json() as Record<string, unknown>;
     return { success: true, data };
   } catch (error) {
     console.error('Error saving words to task:', error);
-    return { success: false, reason: 'exception', data: error instanceof Error ? error.message : 'Unknown error' };
+    return { success: false, reason: 'exception', data: { error: error instanceof Error ? error.message : 'Unknown error' } };
   }
 }
 
@@ -690,7 +662,7 @@ export async function saveWordsToTask(taskId: string, learnedWords: any[]): Prom
  * @param taskId מזהה המשימה
  * @returns מערך של מילים עם פרטים נוספים
  */
-export async function getWordsForTask(taskId: string): Promise<any[]> {
+export async function getWordsForTask(taskId: string): Promise<Array<Record<string, unknown>>> {
   try {
     // אם זה מזהה זמני, החזר מערך ריק
     if (!taskId || taskId.startsWith('client_') || taskId.startsWith('temp_')) {
@@ -712,7 +684,7 @@ export async function getWordsForTask(taskId: string): Promise<any[]> {
       throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
     
-    const data = await response.json();
+    const data = await response.json() as { success: boolean; data: Array<Record<string, unknown>> };
     
     if (data.success && Array.isArray(data.data)) {
       return data.data;
@@ -724,8 +696,9 @@ export async function getWordsForTask(taskId: string): Promise<any[]> {
     return [];
   }
 }
+
 // פונקציה לקבלת משימות משתמש
-export async function getUserTasks(userId: string): Promise<any[]> {
+export async function getUserTasks(userId: string): Promise<Array<Record<string, unknown>>> {
   console.log(`Getting tasks for user ${userId}`);
   
   try {
@@ -741,8 +714,9 @@ export async function getUserTasks(userId: string): Promise<any[]> {
         [userId]
       );
       
-      console.log(`Retrieved ${(rows as any[]).length} tasks for user`);
-      return rows as any[];
+      const tasks = rows as RowDataPacket[];
+      console.log(`Retrieved ${tasks.length} tasks for user`);
+      return tasks;
     } catch (error) {
       console.error('Error getting user tasks:', error);
       return [];

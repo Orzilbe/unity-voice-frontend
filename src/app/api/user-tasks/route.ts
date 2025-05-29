@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSafeDbPool } from '../../lib/db';
 import jwt from 'jsonwebtoken';
-import { formatTopicNameForDb, formatTopicNameForUrl, areTopicNamesEquivalent } from '../../lib/topicUtils';
+import { formatTopicNameForDb, formatTopicNameForUrl } from '../../lib/topicUtils';
 
 
 interface JWTPayload {
@@ -113,13 +113,16 @@ export async function GET(request: NextRequest) {
     console.log(`Found ${Array.isArray(tasks) ? tasks.length : 0} tasks`);
     
     // לפרמט את כל המשימות כך ששם הנושא יהיה בפורמט אחיד
-    const formattedTasks = Array.isArray(tasks) ? (tasks as any[]).map(task => ({
-      ...task,
-      TopicName: dbTopicName // הפיכת שם הנושא לפורמט אחיד
-    })) : [];
+    const formattedTasks = Array.isArray(tasks) ? tasks.map((task: unknown) => {
+      const taskObj = task as Record<string, unknown>;
+      return {
+        ...taskObj,
+        TopicName: dbTopicName // הפיכת שם הנושא לפורמט אחיד
+      };
+    }) : [];
     
     if (formattedTasks.length > 0) {
-      const firstTask = formattedTasks[0];
+      const firstTask = formattedTasks[0] as { TaskId?: unknown; TaskType?: unknown; Level?: unknown };
       console.log(`First task: TaskId=${firstTask.TaskId}, TaskType=${firstTask.TaskType}, Level=${firstTask.Level}`);
     }
 

@@ -2,13 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getSafeDbPool } from '../../lib/db';
+import mysql from 'mysql2/promise';
 
 /**
  * פונקציה לחילוץ מזהה משתמש מטוקן
  */
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -57,7 +58,7 @@ async function isTaskOwnedByUser(taskId: string, userId: string): Promise<boolea
 /**
  * בדיקה אם טבלה קיימת
  */
-async function doesTableExist(pool: any, tableName: string): Promise<boolean> {
+async function doesTableExist(pool: mysql.Pool, tableName: string): Promise<boolean> {
   try {
     const [result] = await pool.query('SHOW TABLES LIKE ?', [tableName]);
     return Array.isArray(result) && result.length > 0;
@@ -112,9 +113,8 @@ export async function POST(request: NextRequest) {
     }
     
     // בדיקה ויצירת טבלה אם לא קיימת
-    const tablesToCheck = ['wordintask'];
     let tableExists = false;
-    let tableToUse = 'wordintask'; // Always use 'wordintask' (lowercase) for consistency
+    const tableToUse = 'wordintask'; // Always use 'wordintask' (lowercase) for consistency
     
     tableExists = await doesTableExist(pool, tableToUse);
     
@@ -145,7 +145,8 @@ export async function POST(request: NextRequest) {
     // בדיקת מבנה הטבלה
     try {
       const [columns] = await pool.query(`SHOW COLUMNS FROM ${tableToUse}`);
-      const hasAddedAt = (columns as any[]).some((col: any) => col.Field === 'AddedAt');
+      const columnRows = columns as { Field: string }[];
+      const hasAddedAt = columnRows.some(col => col.Field === 'AddedAt');
       
       // אם אין שדה AddedAt, ננסה להוסיף אותו
       if (!hasAddedAt) {
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
     
     // הוספת המילים לטבלה
     let successCount = 0;
-    let errors = [];
+    const errors = [];
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     
     try {
@@ -194,7 +195,8 @@ export async function POST(request: NextRequest) {
           console.log(`Adding ${values.length} words to ${tableToUse}, SQL:`, query);
           
           const [result] = await pool.query(query, flatValues);
-          successCount = (result as any).affectedRows || 0;
+          const affectedRows = (result as { affectedRows?: number }).affectedRows || 0;
+          successCount = affectedRows;
           console.log(`Bulk insert successful, added ${successCount} words`);
         } catch (bulkError) {
           console.error('Bulk insert failed, trying individual inserts:', bulkError);
@@ -215,7 +217,8 @@ export async function POST(request: NextRequest) {
               
               const [result] = await pool.query(query, params);
               
-              if ((result as any).affectedRows > 0) {
+              const affectedRows = (result as { affectedRows?: number }).affectedRows || 0;
+              if (affectedRows > 0) {
                 successCount++;
               }
             } catch (individualError) {
@@ -257,7 +260,7 @@ export async function POST(request: NextRequest) {
 /**
  * בדיקה אם עמודה קיימת בטבלה
  */
-async function doesColumnExist(pool: any, tableName: string, columnName: string): Promise<boolean> {
+async function doesColumnExist(pool: mysql.Pool, tableName: string, columnName: string): Promise<boolean> {
   try {
     const [columns] = await pool.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
     return Array.isArray(columns) && columns.length > 0;
@@ -351,11 +354,12 @@ export async function GET(request: NextRequest) {
       
       const [rows] = await pool.query(query, [taskId]);
       
-      console.log(`Retrieved ${Array.isArray(rows) ? rows.length : 0} words for task ${taskId}`);
+      const wordRows = rows as unknown[];
+      console.log(`Retrieved ${Array.isArray(wordRows) ? wordRows.length : 0} words for task ${taskId}`);
       return NextResponse.json({ 
         success: true, 
         taskId,
-        data: rows 
+        data: wordRows 
       });
     } catch (error) {
       console.error('Error getting words for task:', error);

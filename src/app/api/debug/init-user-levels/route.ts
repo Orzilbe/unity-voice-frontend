@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import mysql from 'mysql2/promise';
+import mysql, { RowDataPacket } from 'mysql2/promise';
 
 // Function to get database connection
 async function getDbConnection() {
@@ -26,7 +26,7 @@ async function getDbConnection() {
 // Function to extract user ID from token
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -83,7 +83,8 @@ export async function POST(request: NextRequest) {
     try {
       // Get all topics from the database
       const [topicsResult] = await connection.execute('SELECT TopicName FROM topics');
-      const topics = Array.isArray(topicsResult) ? topicsResult.map((row: any) => row.TopicName) : [];
+      const topicsRows = topicsResult as RowDataPacket[];
+      const topics = topicsRows.map(row => row.TopicName as string);
       
       if (topics.length === 0) {
         console.warn('No topics found in the database');
@@ -118,10 +119,10 @@ export async function POST(request: NextRequest) {
             status: 'exists'
           });
         } else {
-          // Insert new record
-          const [insertResult] = await connection.execute(
-            'INSERT INTO userinlevel (TopicName, Level, UserId, EarnedScore, CompletedAt, IsCompleted) VALUES (?, ?, ?, 0, NULL, 0)',
-            [topic, 1, targetUserId]
+          // Create initial level 1 for this user and topic
+          await connection.query(
+            'INSERT INTO userinlevel (UserId, TopicName, Level, EarnedScore) VALUES (?, ?, 1, 0)',
+            [targetUserId, topic]
           );
           
           console.log(`Created record for topic ${topic}, level 1, user ${targetUserId}`);

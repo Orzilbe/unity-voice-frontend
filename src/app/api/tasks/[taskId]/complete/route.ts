@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getSafeDbPool } from '../../../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { RowDataPacket } from '../../../../../types';
+import mysql, { OkPacket } from 'mysql2/promise';
 
 /**
  * פונקציה לחילוץ מזהה משתמש מטוקן
  */
 function getUserIdFromToken(token: string): string | null {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
     return decoded.userId || decoded.id || null;
   } catch (error) {
     console.error('Error verifying token:', error);
@@ -73,7 +75,12 @@ export async function POST(request: NextRequest) {
     }
     
     // ניתוח גוף הבקשה
-    const body = await request.json();
+    const body = await request.json() as {
+      UserId?: string;
+      TopicName: string;
+      Level: number;
+      TaskType: string;
+    };
     console.log('Request body:', JSON.stringify(body, null, 2));
     
     // עיבוד ה-UserId - אם לא סופק, השתמש במה שהגיע מהטוקן
@@ -102,9 +109,10 @@ export async function POST(request: NextRequest) {
     );
     
     if (Array.isArray(existingTasks) && existingTasks.length > 0) {
-      console.log(`Found existing incomplete task: ${(existingTasks[0] as any).TaskId}`);
+      const taskId = (existingTasks[0] as RowDataPacket & { TaskId: string }).TaskId;
+      console.log(`Found existing incomplete task: ${taskId}`);
       return NextResponse.json({ 
-        TaskId: (existingTasks[0] as any).TaskId,
+        TaskId: taskId,
         message: 'Using existing task'
       });
     }
@@ -120,7 +128,7 @@ export async function POST(request: NextRequest) {
       [taskId, userId, body.TopicName, body.Level, body.TaskType]
     );
     
-    if (!(result as any).affectedRows) {
+    if (!(result as OkPacket).affectedRows) {
       console.error('Failed to create task');
       return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
     }
@@ -155,7 +163,14 @@ export async function PUT(request: NextRequest) {
     }
     
     // ניתוח גוף הבקשה
-    const body = await request.json();
+    const body = await request.json() as {
+      taskId: string;
+      TaskScore?: number;
+      CompletionDate?: string;
+      DurationTask?: number;
+      StartDate?: string;
+      [key: string]: unknown;
+    };
     console.log('Request body:', JSON.stringify(body, null, 2));
     
     // וידוא שיש מזהה משימה
@@ -173,8 +188,8 @@ export async function PUT(request: NextRequest) {
     }
     
     // הכנת ערכי העדכון
-    const updates: any = {};
-    const params: any[] = [];
+    const updates: Record<string, unknown> = {};
+    const params: unknown[] = [];
     
     // רשימת שדות שניתן לעדכן
     const allowedFields = [
@@ -221,7 +236,7 @@ export async function PUT(request: NextRequest) {
     // ביצוע העדכון
     const [result] = await pool.query(updateQuery, params);
     
-    if ((result as any).affectedRows === 0) {
+    if ((result as OkPacket).affectedRows === 0) {
       console.error(`No rows affected updating task ${taskId}`);
       return NextResponse.json({ error: 'Task not found or not updated' }, { status: 404 });
     }
@@ -257,7 +272,7 @@ export async function PUT(request: NextRequest) {
 /**
  * עדכון ציון המשתמש
  */
-async function updateUserScore(pool: any, taskId: string, score: number): Promise<boolean> {
+async function updateUserScore(pool: mysql.Pool, taskId: string, score: number): Promise<boolean> {
   try {
     // קבלת פרטי המשימה
     const [tasks] = await pool.query(
@@ -269,7 +284,11 @@ async function updateUserScore(pool: any, taskId: string, score: number): Promis
       return false;
     }
     
-    const task = tasks[0] as any;
+    const task = tasks[0] as RowDataPacket & {
+      UserId: string;
+      TopicName: string;
+      Level: number;
+    };
     
     // עדכון הציון של המשתמש ברמה הספציפית
     await pool.query(
