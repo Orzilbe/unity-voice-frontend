@@ -1,5 +1,6 @@
 // apps/web/src/lib/auth.ts
 import { User } from '../../types';
+import { authEndpoints, healthCheck } from '../../config/api';
 
 interface LoginResponse {
   success: boolean;
@@ -14,19 +15,12 @@ interface LoginResponse {
  */
 export async function loginUser(email: string, password: string): Promise<LoginResponse> {
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
+    // Use external API for login
+    const data = await authEndpoints.login({ email, password });
 
     // Ensure response follows consistent format
     return {
-      success: response.ok,
+      success: data.success || false,
       token: data.token,
       user: data.user,
       message: data.message,
@@ -49,11 +43,11 @@ export async function checkApiHealth(): Promise<{
   details: unknown;
 }> {
   try {
-    const response = await fetch('/api/health');
-    const data = await response.json() as { status?: string };
+    // Use external API for health check
+    const data = await healthCheck();
     
     return {
-      isReachable: data.status === 'online',
+      isReachable: data.status === 'online' || data.status === 'healthy',
       details: data
     };
   } catch (error) {
@@ -83,15 +77,8 @@ export async function validateToken(): Promise<{
       return { isValid: false };
     }
     
-    const response = await fetch('/api/auth/validate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ token }),
-    });
-
-    const data = await response.json() as { success?: boolean; user?: User };
+    // Use external API for token validation
+    const data = await authEndpoints.validate(token);
     
     return {
       isValid: data.success || false,

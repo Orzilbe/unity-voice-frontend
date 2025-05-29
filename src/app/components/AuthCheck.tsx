@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authenticatedApiCall } from '../../config/api';
 
 /**
  * רכיב פשוט לבדיקת מצב האימות
@@ -24,20 +25,9 @@ const AuthCheck = () => {
         return;
       }
       
-      // בדיקת מידע בסיסי של המשתמש
-      const response = await fetch('/api/user-check', {
-        headers: {
-          'Authorization': `Bearer ${storedToken}`
-        }
-      });
+      // בדיקת מידע בסיסי של המשתמש - using external API
+      const data: { isAuthenticated: boolean; userId?: string } = await authenticatedApiCall('/user/check');
       
-      if (!response.ok) {
-        setStatus('error');
-        setMessage(`בדיקת אימות נכשלה: ${response.status} ${response.statusText}`);
-        return;
-      }
-      
-      const data: { isAuthenticated: boolean; userId?: string } = await response.json();
       setStatus('success');
       setMessage('אימות הצליח!');
       setDecoded(data);

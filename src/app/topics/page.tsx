@@ -8,6 +8,7 @@ import TopicCard from '../components/TopicCard';
 import { useAuth } from '../../hooks/useAuth';
 import { clearAuthToken } from '../lib/auth';
 import Link from 'next/link';
+import { authenticatedApiCall } from '../../config/api';
 
 interface Topic {
   TopicName: string;
@@ -83,15 +84,8 @@ export default function Topics() {
       // טעינת נושאים
       const fetchTopics = async () => {
         try {
-          const response = await fetch('/api/topics', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setTopics(data);
-          }
+          const data = await authenticatedApiCall('/topics');
+          setTopics(data);
         } catch (error) {
           console.error('Error fetching topics:', error);
         }
@@ -100,35 +94,28 @@ export default function Topics() {
       // טעינת נתוני משתמש
       const fetchUserData = async () => {
         try {
-          const response = await fetch('/api/user-data', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+          const data = await authenticatedApiCall('/user/data');
+          console.log('User data from API (full response):', data);
+          
+          // בדוק ספציפית את השדה של הציון
+          console.log('Score field specifically:', {
+            score: data.score,
+            Score: data.Score,
+            totalScore: data.totalScore,
+            TotalScore: data.TotalScore,
+            total_score: data.total_score,
+            scoreValue: data.scoreValue
           });
-          if (response.ok) {
-            const data = await response.json();
-            console.log('User data from API (full response):', data);
-            
-            // בדוק ספציפית את השדה של הציון
-            console.log('Score field specifically:', {
-              score: data.score,
-              Score: data.Score,
-              totalScore: data.totalScore,
-              TotalScore: data.TotalScore,
-              total_score: data.total_score,
-              scoreValue: data.scoreValue
-            });
-            
-            setUserData({
-              level: data.currentLevel || "Beginner",
-              points: data.currentLevelPoints || 0,
-              totalScore: data.score || data.Score || data.totalScore || data.TotalScore || data.total_score || data.scoreValue || 0,
-              completedTasks: data.completedTasksCount || 0,
-              activeSince: data.CreationDate ? new Date(data.CreationDate).toLocaleDateString() : "Today",
-              nextLevel: data.nextLevel || "Intermediate",
-              pointsToNextLevel: data.pointsToNextLevel || 100
-            });
-          }
+          
+          setUserData({
+            level: data.currentLevel || "Beginner",
+            points: data.currentLevelPoints || 0,
+            totalScore: data.score || data.Score || data.totalScore || data.TotalScore || data.total_score || data.scoreValue || 0,
+            completedTasks: data.completedTasksCount || 0,
+            activeSince: data.CreationDate ? new Date(data.CreationDate).toLocaleDateString() : "Today",
+            nextLevel: data.nextLevel || "Intermediate",
+            pointsToNextLevel: data.pointsToNextLevel || 100
+          });
         } catch (error) {
           console.error('Error fetching user data:', error);
         }

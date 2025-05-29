@@ -1,6 +1,7 @@
 // apps/web/src/lib/auth.ts
 
 import jwt from 'jsonwebtoken';
+import { authEndpoints } from '../config/api';
 
 interface User {
   id?: string;
@@ -77,24 +78,17 @@ export const removeAuthToken = () => {
 
 export async function loginUser(email: string, password: string): Promise<LoginResponse> {
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
+    // Use external API for login
+    const data = await authEndpoints.login({ email, password });
 
     // If login was successful, store the token
-    if (response.ok && data.token) {
+    if (data.success && data.token) {
       storeAuthToken(data.token);
     }
 
     // Ensure response follows consistent format
     return {
-      success: response.ok,
+      success: data.success || false,
       token: data.token,
       user: data.user,
       message: data.message,

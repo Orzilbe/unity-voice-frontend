@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { authenticatedApiCall } from '../../config/api';
 
 // Extend the User interface to match your database structure
 interface User {
@@ -42,22 +43,7 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
     
       setIsLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-
-        const response = await fetch('/api/user-profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch user profile');
-        }
-    
-        const data = await response.json();
+        const data = await authenticatedApiCall('/user/profile');
         
         // Set user data with proper type casting
         setUserData({

@@ -1,5 +1,6 @@
 // apps/web/src/hooks/useAuth.ts
 import { useState, useEffect } from 'react';
+import { authEndpoints } from '../config/api';
 
 interface User {
   id?: string;
@@ -39,16 +40,8 @@ export const useAuth = () => {
       }
 
       try {
-        // Validate token with API
-        const response = await fetch('/api/auth/validate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ token }),
-        });
-
-        const data = await response.json();
+        // Validate token with external API
+        const data = await authEndpoints.validate(token);
 
         if (data.success) {
           // Get user data from localStorage as a fallback if not provided by API
@@ -94,17 +87,10 @@ export const useAuth = () => {
 
   const login = async (email: string, password: string) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true }));
+      setAuthState((prev: AuthState) => ({ ...prev, isLoading: true }));
       
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
+      // Use external API for login
+      const data = await authEndpoints.login({ email, password });
 
       if (data.success) {
         localStorage.setItem('token', data.token);

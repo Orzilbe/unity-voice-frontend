@@ -1,6 +1,7 @@
 // apps/web/src/app/components/TopicCard.tsx
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { authenticatedApiCall } from '../../config/api';
 
 
 interface Topic {
@@ -42,29 +43,15 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
       console.log(`מנסה ליצור משימה: userId=${userId}, topicName=${topicUrlName}, token=${token.slice(0, 10)}...`);
       
       // יצירת משימה חדשה
-      const taskResponse = await fetch('/api/tasks', {
+      const taskData = await authenticatedApiCall('/tasks', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
-          UserId: userId, // מוסיף את UserId במפורש
-          TopicName: topicUrlName,
-          Level: '1',
-          TaskType: 'flashcard'
+          UserId: userId,
+          TopicName: topic.TopicName,
+          TaskType: 'topic_selection'
         })
       });
 
-      // טיפול בשגיאה
-      if (!taskResponse.ok) {
-        console.error('תגובת שגיאה מהשרת:', taskResponse.status, taskResponse.statusText);
-        const errorData = await taskResponse.json().catch(() => ({ error: 'שגיאה לא ידועה' }));
-        throw new Error(errorData.error || `שגיאת שרת: ${taskResponse.status}`);
-      }
-
-      // קבלת פרטי המשימה
-      const taskData = await taskResponse.json();
       const taskId = taskData.TaskId;
       console.log('משימה נוצרה בהצלחה עם מזהה:', taskId);
 

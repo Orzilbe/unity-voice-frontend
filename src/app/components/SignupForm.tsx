@@ -109,44 +109,27 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     setIsLoading(true);
     
     try {
-      console.log('Sending registration data:', {
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        // לא מציגים את הסיסמה בלוגים מטעמי אבטחה
-        password: '********',
-        englishLevel: formData.englishLevel,
-        ageRange: formData.ageRange,
-      });
-
       // בדיקה אם השרת זמין
       try {
-        const healthCheck = await fetch('unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/health', { mode: 'no-cors' });
+        const healthCheck = await fetch('https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/health');
         console.log('API server health check status:', healthCheck.status);
       } catch (healthError) {
         console.error('API server health check failed. Server might be down:', healthError);
       }
       
-      // אפשרות 1 - ישירות לשרת ה-API (עלול להיתקל בבעיות CORS)
-      /*
-      const response = await fetch('http://localhost:5000/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phoneNumber: formData.phoneNumber,
-          password: formData.password,
-          englishLevel: formData.englishLevel,
-          ageRange: formData.ageRange,
-        }),
+      // שמירת נתוני הטופס
+      console.log('Registration data:', {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        password: '[HIDDEN]',
+        englishLevel: formData.englishLevel,
+        ageRange: formData.ageRange,
       });
-      */
-      
-      // אפשרות 2 - דרך ה-API Route שלנו (מומלץ)
-      const response = await fetch('/api/auth/register', {
+
+      // Use external API directly
+      const response = await fetch('https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
