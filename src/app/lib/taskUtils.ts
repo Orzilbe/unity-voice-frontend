@@ -7,7 +7,7 @@
  * @param wordIds - מערך של מזהי מילים
  * @returns הבטחה עם תוצאת הפעולה
  */
-export async function saveWordsToTask(taskId: string, wordIds: string[] | any[]): Promise<boolean> {
+export async function saveWordsToTask(taskId: string, wordIds: string[]): Promise<boolean> {
   console.log(`[TaskUtils] Saving ${wordIds?.length || 0} words to task ${taskId}`);
   
   try {
@@ -28,10 +28,12 @@ export async function saveWordsToTask(taskId: string, wordIds: string[] | any[])
       if (typeof word === 'string') {
         return word;
       } else if (typeof word === 'object' && word !== null) {
-        return word.WordId || word.wordId || word.id;
+        // Handle object with WordId property
+        const wordObj = word as { WordId?: string; wordId?: string; id?: string };
+        return wordObj.WordId || wordObj.wordId || wordObj.id;
       }
       return null;
-    }).filter(id => id !== null && id !== undefined);
+    }).filter(id => id !== null && id !== undefined) as string[];
     
     console.log(`[TaskUtils] Processed ${processedWordIds.length} valid word IDs`);
     
@@ -189,11 +191,12 @@ try {
 * @returns הבטחה עם תוצאת הפעולה
 */
 export async function completeConversationTask(
-taskId: string,
-topicName: string,
-level: number,
-score: number = 100,
-durationSeconds: number = 0
+  taskId: string,
+  topicName: string,
+  level: number,
+  score: number,
+  duration: number,
+  completionData?: Record<string, unknown>
 ): Promise<boolean> {
 console.log(`[TaskUtils] Completing conversation task ${taskId} for topic ${topicName} level ${level}`);
 
@@ -221,7 +224,7 @@ try {
     body: JSON.stringify({
       taskId,
       score,
-      duration: durationSeconds
+      duration: duration
     })
   });
   
@@ -245,7 +248,8 @@ try {
       currentLevel: level,
       earnedScore: score,
       taskId, // אופציונלי, API יכול להתעלם מזה
-      isCompleted: true // לסמן השלמת רמה
+      isCompleted: true, // לסמן השלמת רמה
+      completionData
     })
   });
   

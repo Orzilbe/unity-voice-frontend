@@ -5,7 +5,7 @@
  * @param taskId מזהה המשימה
  * @param wordIds מערך של מזהי מילים (או אובייקטים עם WordId)
  */
-export async function saveWordsToTask(taskId: string, wordIds: any[]): Promise<boolean> {
+export async function saveWordsToTask(taskId: string, wordIds: (string | { WordId?: string; wordId?: string })[]): Promise<boolean> {
   try {
     // אם אין מזהה משימה, אין מה לשמור
     if (!taskId || taskId.startsWith('client_') || taskId.startsWith('temp_')) {
@@ -27,9 +27,9 @@ export async function saveWordsToTask(taskId: string, wordIds: any[]): Promise<b
       wordIdsArray = wordIds as string[];
     } else {
       // אם קיבלנו מערך של אובייקטים
-      wordIdsArray = wordIds
+      wordIdsArray = (wordIds as { WordId?: string; wordId?: string }[])
         .filter(item => item && (item.WordId || item.wordId))
-        .map(item => item.WordId || item.wordId);
+        .map(item => (item.WordId || item.wordId) as string);
     }
     
     console.log(`Prepared ${wordIdsArray.length} word IDs to save for task ${taskId}`);

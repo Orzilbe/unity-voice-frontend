@@ -51,7 +51,9 @@ export default function Login() {
     
       if (result.success) {
         // Store token and user info using our helper function
-        saveAuthToken(result.token || '', result.user || {});
+        if (result.user) {
+          saveAuthToken(result.token || '', result.user);
+        }
         // Redirect to topics page
         router.push('/topics');
       } else {  // <-- שים לב לתיקון כאן
@@ -226,7 +228,7 @@ export default function Login() {
               </div>
               
               <div className="text-center text-sm text-gray-600 mt-4">
-                Don't have an account? <a href="/signup" className="font-medium text-teal-600 hover:text-teal-500">Sign up</a>
+                Don&apos;t have an account? <a href="/signup" className="font-medium text-teal-600 hover:text-teal-500">Sign up</a>
               </div>
             </form>
           </FormContainer>

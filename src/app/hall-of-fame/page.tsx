@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface TopUser {
   UserId: string;
@@ -106,9 +107,11 @@ export default function HallOfFame() {
               <div className="mx-4 flex flex-col items-center">
                 <div className="relative">
                   {topUsers[1].ProfilePicture ? (
-                    <img 
+                    <Image 
                       src={topUsers[1].ProfilePicture} 
                       alt={`${topUsers[1].FirstName} ${topUsers[1].LastName}`} 
+                      width={64}
+                      height={64}
                       className="w-16 h-16 rounded-full object-cover border-4 border-gray-300"
                     />
                   ) : (
@@ -134,9 +137,11 @@ export default function HallOfFame() {
               <div className="mx-4 flex flex-col items-center">
                 <div className="relative">
                   {topUsers[0].ProfilePicture ? (
-                    <img 
+                    <Image 
                       src={topUsers[0].ProfilePicture} 
                       alt={`${topUsers[0].FirstName} ${topUsers[0].LastName}`} 
+                      width={80}
+                      height={80}
                       className="w-20 h-20 rounded-full object-cover border-4 border-yellow-400"
                     />
                   ) : (
@@ -165,9 +170,11 @@ export default function HallOfFame() {
               <div className="mx-4 flex flex-col items-center">
                 <div className="relative">
                   {topUsers[2].ProfilePicture ? (
-                    <img 
+                    <Image 
                       src={topUsers[2].ProfilePicture} 
                       alt={`${topUsers[2].FirstName} ${topUsers[2].LastName}`} 
+                      width={56}
+                      height={56}
                       className="w-14 h-14 rounded-full object-cover border-4 border-amber-700"
                     />
                   ) : (
@@ -212,9 +219,11 @@ export default function HallOfFame() {
                     <td className="py-4 px-4">
                       <div className="flex items-center">
                         {user.ProfilePicture ? (
-                          <img 
+                          <Image 
                             src={user.ProfilePicture} 
                             alt={`${user.FirstName} ${user.LastName}`} 
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-full object-cover mr-3"
                           />
                         ) : (

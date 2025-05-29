@@ -2,6 +2,23 @@
 
 import { getSafeDbPool } from '../lib/db';
 import { formatTopicNameForDb } from '../lib/topicUtils';
+import { RowDataPacket } from 'mysql2';
+
+interface UserLevelRow extends RowDataPacket {
+  Level: string;
+}
+
+interface LearnedWordRow extends RowDataPacket {
+  WordId: string;
+}
+
+interface WordData extends RowDataPacket {
+  WordId: string;
+  Word: string;
+  Definition: string;
+  TopicName: string;
+  EnglishLevel: string;
+}
 
 /**
  * פונקציה לקבלת מילים עבור נושא ורמה, תוך פילטור מילים שכבר נלמדו
@@ -16,7 +33,7 @@ export async function getSmartFilteredWords(
   topicName: string,
   level: string,
   limit: number = 20
-): Promise<any[]> {
+): Promise<WordData[]> {
   try {
     console.group('getSmartFilteredWords');
     console.log(`Getting words for userId ${userId}, topic "${topicName}", level ${level}`);
@@ -41,7 +58,7 @@ export async function getSmartFilteredWords(
     
     let userLevel = 1; // ברירת מחדל
     if (Array.isArray(userLevelRows) && userLevelRows.length > 0) {
-      userLevel = parseInt((userLevelRows[0] as any).Level, 10);
+      userLevel = parseInt((userLevelRows[0] as UserLevelRow).Level, 10);
     }
     console.log(`User level in topic "${dbTopicName}": ${userLevel}`);
     
@@ -62,7 +79,7 @@ export async function getSmartFilteredWords(
       
       console.log(`Retrieved ${Array.isArray(words) ? words.length : 0} words without wordintask filtering`);
       console.groupEnd();
-      return Array.isArray(words) ? words : [];
+      return Array.isArray(words) ? words as WordData[] : [];
     }
     
     // שאילתא לקבלת כל המילים שהמשתמש כבר למד (מכל המשימות של המשתמש)
@@ -76,7 +93,7 @@ export async function getSmartFilteredWords(
     
     const [learnedWords] = await pool.query(learnedWordsQuery, [userId]);
     const learnedWordIds = Array.isArray(learnedWords) 
-      ? (learnedWords as any[]).map(row => row.WordId) 
+      ? (learnedWords as LearnedWordRow[]).map(row => row.WordId) 
       : [];
     
     console.log(`User has learned ${learnedWordIds.length} words in total`);
@@ -93,7 +110,7 @@ export async function getSmartFilteredWords(
       
       console.log(`Retrieved ${Array.isArray(words) ? words.length : 0} words without filtering`);
       console.groupEnd();
-      return Array.isArray(words) ? words : [];
+      return Array.isArray(words) ? words as WordData[] : [];
     }
     
     // פילטור מילים - קבלת מילים שלא נלמדו עדיין
@@ -167,7 +184,7 @@ export async function getSmartFilteredWords(
         if (Array.isArray(alternateWords) && alternateWords.length >= 3) {
           console.log(`Retrieved ${alternateWords.length} alternate words`);
           console.groupEnd();
-          return alternateWords as any[];
+          return alternateWords as WordData[];
         }
         
         // אם עדיין אין מספיק מילים, ננסה להחזיר מילים ללא פילטור
@@ -182,11 +199,11 @@ export async function getSmartFilteredWords(
         
         console.log(`Retrieved ${Array.isArray(unfilteredWords) ? unfilteredWords.length : 0} unfiltered words as fallback`);
         console.groupEnd();
-        return Array.isArray(unfilteredWords) ? unfilteredWords : [];
+        return Array.isArray(unfilteredWords) ? unfilteredWords as WordData[] : [];
       }
       
       console.groupEnd();
-      return filteredWords as any[];
+      return filteredWords as WordData[];
     } catch (sqlError) {
       console.error('SQL Error in filtered query:', sqlError);
       
@@ -202,7 +219,7 @@ export async function getSmartFilteredWords(
       
       console.log(`Retrieved ${Array.isArray(unfilteredWords) ? unfilteredWords.length : 0} unfiltered words after SQL error`);
       console.groupEnd();
-      return Array.isArray(unfilteredWords) ? unfilteredWords : [];
+      return Array.isArray(unfilteredWords) ? unfilteredWords as WordData[] : [];
     }
   } catch (error) {
     console.error('Error in getSmartFilteredWords:', error);

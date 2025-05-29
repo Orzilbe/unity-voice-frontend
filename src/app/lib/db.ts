@@ -19,18 +19,6 @@ const databaseConfig = {
   ssl: process.env.MYSQL_SSL === 'true'
 };
 
-// Log database configuration (without sensitive information)
-function logDatabaseConfig() {
-  console.log('Database configuration:', {
-    host: databaseConfig.host,
-    user: databaseConfig.user,
-    database: databaseConfig.database,
-    port: databaseConfig.port,
-    ssl: databaseConfig.ssl,
-    passwordProvided: !!databaseConfig.password
-  });
-}
-
 // Test database connection function
 export async function testConnection(): Promise<boolean> {
   try {

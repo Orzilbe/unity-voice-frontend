@@ -1,11 +1,12 @@
 // apps/web/src/lib/auth.ts
+import { User } from '../../types';
 
 interface LoginResponse {
   success: boolean;
   token?: string;
-  user?: any;
+  user?: User;
   message?: string;
-  details?: any;
+  details?: unknown;
 }
 
 /**
@@ -45,11 +46,11 @@ export async function loginUser(email: string, password: string): Promise<LoginR
  */
 export async function checkApiHealth(): Promise<{
   isReachable: boolean;
-  details: any;
+  details: unknown;
 }> {
   try {
     const response = await fetch('/api/health');
-    const data = await response.json();
+    const data = await response.json() as { status?: string };
     
     return {
       isReachable: data.status === 'online',
@@ -72,7 +73,7 @@ export function getAuthToken(): string | null {
 
 export async function validateToken(): Promise<{
   isValid: boolean;
-  user?: any;
+  user?: User;
 }> {
   try {
     // קבלת הטוקן מה-localStorage
@@ -90,10 +91,10 @@ export async function validateToken(): Promise<{
       body: JSON.stringify({ token }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as { success?: boolean; user?: User };
     
     return {
-      isValid: data.success,
+      isValid: data.success || false,
       user: data.user
     };
   } catch (error) {
@@ -105,7 +106,7 @@ export async function validateToken(): Promise<{
 /**
  * שמירת טוקן האימות במערכת
  */
-export function saveAuthToken(token: string, user: any): void {
+export function saveAuthToken(token: string, user: User): void {
   if (typeof window !== 'undefined') {
     // שמירה בלוקל סטורג'
     localStorage.setItem('token', token);

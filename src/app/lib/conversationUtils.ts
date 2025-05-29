@@ -69,13 +69,11 @@ export async function handleConversationCompletion({
 export function calculateConversationScore({
   duration = 0,           // משך השיחה בשניות
   wordCount = 0,          // מספר המילים שנלמדו
-  completedExercises = 0, // מספר התרגילים שהושלמו
   answeredQuestions = 0,  // מספר השאלות שנענו
   totalQuestions = 0      // סך השאלות
 }: {
   duration?: number;
   wordCount?: number;
-  completedExercises?: number;
   answeredQuestions?: number;
   totalQuestions?: number;
 }): number {

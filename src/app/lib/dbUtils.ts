@@ -4,7 +4,7 @@ import mysql from 'mysql2/promise';
 /**
  * Create a direct database connection that bypasses any pooling issues
  */
-export async function createDirectConnection() {
+export async function createDirectConnection(): Promise<mysql.Connection | null> {
   try {
     // Load environment variables
     const host = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
@@ -43,9 +43,9 @@ export async function createDirectConnection() {
  */
 export async function executeQuery(
   query: string,
-  params: any[],
+  params: unknown[],
   operationName: string
-) {
+): Promise<{ success: boolean; result?: unknown; error?: unknown }> {
   let connection = null;
   try {
     // Get connection
@@ -197,7 +197,7 @@ export async function updateQuestion(
   
   // Build update query
   let query = 'UPDATE Questions SET UpdatedAt = ?';
-  const params: any[] = [now];
+  const params: unknown[] = [now];
   
   if (answerText !== undefined) {
     query += ', AnswerText = ?';
