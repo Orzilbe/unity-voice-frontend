@@ -1,89 +1,131 @@
 // API Configuration for Unity Voice Frontend
 // This file centralizes all API endpoint configurations
 
-// The main API base URL - should point to Azure backend
-// Next.js will automatically inject NEXT_PUBLIC_ environment variables at build time
-export const API_BASE_URL = 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
+// Get the API URL from environment variables
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
 
-// Environment validation (only in browser for debugging)
-if (typeof window !== 'undefined') {
-  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// Helper function to handle API responses
+async function handleResponse(response: Response) {
+  const contentType = response.headers.get('content-type');
   
-  if (isDev) {
-    console.log('API Configuration:');
-    console.log('Final API_BASE_URL:', API_BASE_URL);
-    console.log('✅ All API calls will go to Azure backend');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw {
+        status: response.status,
+        message: data.message || 'API request failed',
+        responseData: data
+      };
+    }
+    
+    return data;
+  }
+  
+  // Handle non-JSON responses
+  const text = await response.text();
+  if (!response.ok) {
+    throw {
+      status: response.status,
+      message: text || 'API request failed',
+      responseData: text
+    };
+  }
+  
+  return text;
+}
+
+// Main API call function
+async function apiCall(endpoint: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('token');
+  
+  // Prepare headers
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...options.headers
+  };
+
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+
+    return await handleResponse(response);
+  } catch (error) {
+    console.error(`API call failed for ${endpoint}:`, error);
+    throw error;
   }
 }
 
-// Helper function for making API calls
-export const apiCall = async (endpoint: string, options?: RequestInit) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  // Debug logging in development
-  if (typeof window !== 'undefined') {
-    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isDev) {
-      console.log('🔗 API Call to:', url);
-    }
-  }
-  
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`❌ API call failed: ${response.status} - ${errorText}`);
-    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
-  }
-  
-  return response.json();
-};
-
-// Helper function for authenticated API calls
-export const authenticatedApiCall = async (endpoint: string, options?: RequestInit) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
+// Authenticated API call function that ensures a token is present
+export async function authenticatedApiCall(endpoint: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('token');
   if (!token) {
-    throw new Error('No authentication token found');
+    throw new Error('Authentication required: No token found');
   }
-  
-  return apiCall(endpoint, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      ...options?.headers,
-    },
-  });
-};
+  return apiCall(endpoint, options);
+}
 
-// Specific API endpoint helpers
+// Health check endpoint
+export async function healthCheck() {
+  return apiCall('/health');
+}
+
+// Authentication endpoints
 export const authEndpoints = {
-  login: (credentials: any) => 
+  login: async (credentials: { email: string; password: string }) => 
     apiCall('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
     
-  register: (userData: any) => 
+  register: async (userData: {
+    email: string;
+    password: string;
+    name?: string;
+    [key: string]: unknown;
+  }) => 
     apiCall('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     }),
     
-  validate: (token: string) => 
+  validate: async (token: string) => 
     apiCall('/auth/validate', {
       method: 'POST',
       body: JSON.stringify({ token }),
     }),
+    
+  logout: async () => 
+    apiCall('/auth/logout', {
+      method: 'POST',
+    })
 };
 
-export const healthCheck = () => apiCall('/health');
+// User endpoints
+export const userEndpoints = {
+  getProfile: async () => apiCall('/user/profile'),
+  updateProfile: async (data: unknown) => 
+    apiCall('/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
 
-// Export the configured API base URL for direct use where needed
-export { API_BASE_URL as default }; 
+// Topics endpoints
+export const topicsEndpoints = {
+  getAll: async () => apiCall('/topics'),
+  getById: async (id: string) => apiCall(`/topics/${id}`),
+  getUserProgress: async () => apiCall('/topics/progress'),
+};
+
+export default {
+  apiCall,
+  authenticatedApiCall,
+  healthCheck,
+  auth: authEndpoints,
+  user: userEndpoints,
+  topics: topicsEndpoints,
+}; 

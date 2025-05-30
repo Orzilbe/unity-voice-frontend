@@ -4,24 +4,45 @@
 
 import { useState, ChangeEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginUser, saveAuthToken } from '../lib/auth';
+import { useAuth } from '../../hooks/useAuth';
 
 import Header from '../components/Header';
 import InputField from '../components/InputField';
 import FormContainer from '../components/FormContainer';
-import ApiDebug from '../components/ApiDebug';
+
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const { login, isAuthenticated } = useAuth();
+
+  console.log('🔍 Login page render - isAuthenticated:', isAuthenticated);
+
+  // בדיקה מיידית - אם המשתמש כבר מחובר, נווט מיד
+  useEffect(() => {
+    if (isAuthenticated && typeof window !== 'undefined') {
+      console.log('🚀 User already authenticated on mount, redirecting...');
+      router.push('/topics');
+    }
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // אם המשתמש כבר מחובר, העבר אותו ל-topics
+  useEffect(() => {
+    console.log('🔄 Login page useEffect - isAuthenticated:', isAuthenticated, 'isMounted:', isMounted);
+    if (isAuthenticated && isMounted) {
+      console.log('✅ User already authenticated, redirecting to topics...');
+      router.push('/topics');
+    }
+  }, [isAuthenticated, isMounted, router]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -47,19 +68,31 @@ export default function Login() {
     }
 
     try {
-      const result = await loginUser(formData.email, formData.password);
+      console.log('🔐 Attempting login...');
+      const result = await login(formData.email, formData.password, rememberMe);
     
       if (result.success) {
-        // Store token and user info using our helper function
-        if (result.user) {
-          saveAuthToken(result.token || '', result.user);
-        }
-        // Redirect to topics page
-        router.push('/topics');
-      } else {  // <-- שים לב לתיקון כאן
+        console.log('✅ Login successful!');
+        // נווט ישירות ל-topics מבלי לחכות ל-useEffect
+        console.log('🚀 Navigating to topics page...');
+        
+        // נסה עם setTimeout קטן כדי לתת ל-state להתעדכן
+        setTimeout(() => {
+          console.log('🔄 Attempting navigation now...');
+          router.push('/topics');
+          
+          // אם אחרי 2 שניות עדיין לא עבר, נסה עם window.location
+          setTimeout(() => {
+            if (window.location.pathname === '/login') {
+              console.log('⚠️ router.push failed, using window.location...');
+              window.location.href = '/topics';
+            }
+          }, 2000);
+        }, 100);
+      } else {
         // Set error message from the server
         setError(result.message || 'Login failed');
-        console.error('Login details:', result.details);
+        console.log('Login details:', result.details || 'No additional details available');
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -68,6 +101,7 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
   // מציג מסך טעינה אם טרם הושלם הרינדור בצד הלקוח
   if (!isMounted) {
     return (
@@ -112,7 +146,7 @@ export default function Login() {
             </div>
           </div>
         </div>
-        <ApiDebug />
+
         {/* Right side form */}
         <div className="lg:w-1/2">
           <div className="block lg:hidden text-center mb-6">
@@ -196,6 +230,8 @@ export default function Login() {
                     id="remember-me"
                     name="remember-me"
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
                   />
                   <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">

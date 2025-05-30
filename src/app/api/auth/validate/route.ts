@@ -61,15 +61,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
   } catch (error) {
     console.error('Token validation error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         valid: false,
-        message: 'Failed to validate token',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Token validation failed'
       },
       { status: 500 }
     );

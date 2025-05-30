@@ -18,16 +18,29 @@ export async function loginUser(email: string, password: string): Promise<LoginR
     // Use external API for login
     const data = await authEndpoints.login({ email, password });
 
+    // Check if login was successful - backend returns token and user on success
+    const isSuccess = !!(data.token && data.user);
+
     // Ensure response follows consistent format
     return {
-      success: data.success || false,
+      success: isSuccess,
       token: data.token,
       user: data.user,
       message: data.message,
       details: data.details
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login service error:', error);
+    
+    // Check if error has responseData from the backend
+    if (error.responseData) {
+      return {
+        success: false,
+        message: error.responseData.message || error.message,
+        details: error.responseData.details || error.responseData
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : 'An unexpected error occurred'

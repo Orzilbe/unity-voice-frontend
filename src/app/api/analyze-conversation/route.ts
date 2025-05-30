@@ -5,15 +5,24 @@ import jwt from 'jsonwebtoken';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 // Initialize Azure OpenAI
-const openai = new AzureOpenAI({
-  apiKey: process.env.AZURE_OPENAI_API_KEY,
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
-  apiVersion: "2024-04-01-preview"
-});
+let openai: AzureOpenAI | null = null;
+
+function initializeOpenAI() {
+  if (!process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_ENDPOINT || 
+      !process.env.AZURE_OPENAI_DEPLOYMENT_NAME || !process.env.OPENAI_API_VERSION) {
+    return null;
+  }
+
+  return new AzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+    apiVersion: process.env.OPENAI_API_VERSION
+  });
+}
 
 // API URL for the backend
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface MessageInput {
   role: 'user' | 'assistant';
@@ -60,14 +69,6 @@ function validateToken(token: string): { isValid: boolean; userId: string } {
 }
 
 export async function POST(request: NextRequest) {
-  // Check if API key is available
-  if (!process.env.AZURE_OPENAI_API_KEY) {
-    return NextResponse.json(
-      { error: "Azure OpenAI API key is missing" },
-      { status: 500 }
-    );
-  }
-  
   try {
     // Get authorization token from headers
     const authHeader = request.headers.get('authorization');
@@ -123,19 +124,27 @@ export async function POST(request: NextRequest) {
       // Continue to OpenAI generation if API fails
     }
     
-    // If API call failed, use Azure OpenAI directly
+    // Initialize OpenAI if not already initialized
+    if (!openai) {
+      openai = initializeOpenAI();
+      if (!openai) {
+        return NextResponse.json(
+          { error: "Azure OpenAI configuration is missing. Please check your environment variables." },
+          { status: 500 }
+        );
+      }
+    }
+    
     // Format conversation history for the Azure OpenAI call
     const messages = [
       {
         role: "system",
         content: generateSystemPrompt(level, topic, formattedTopic, learnedWords, requiredWords, postContent)
       },
-      // Include previous conversation
       ...previousMessages.map(msg => ({
         role: msg.role,
         content: msg.content
       })),
-      // Add the current user message
       {
         role: "user",
         content: text

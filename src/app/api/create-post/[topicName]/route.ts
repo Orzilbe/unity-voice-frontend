@@ -8,19 +8,28 @@ interface WordData {
   [key: string]: unknown;
 }
 
-// יצירת לקוח OpenAI
-const openai = new AzureOpenAI({
-  apiKey: process.env.AZURE_OPENAI_API_KEY!,
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT!,
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME!,
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION!,
-});
+// יצירת לקוח OpenAI - lazy initialization
+let openai: AzureOpenAI | null = null;
+
+function initializeOpenAI() {
+  if (!process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_ENDPOINT || 
+      !process.env.AZURE_OPENAI_DEPLOYMENT_NAME || !process.env.OPENAI_API_VERSION) {
+    return null;
+  }
+
+  return new AzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+    apiVersion: process.env.OPENAI_API_VERSION
+  });
+}
 
 // בדיקת מפתח OpenAI API
 console.log(`Azure OpenAI API Key status: ${process.env.AZURE_OPENAI_API_KEY ? 'Configured' : 'Not configured'}`);
 
 // API URL לשרת הבקנד
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // יצירת מילים ספציפיות לנושאים שונים
 function getTopicSpecificWords(topicName: string): string[] {
@@ -139,13 +148,21 @@ async function generatePost(topicName: string, englishLevel: string, learnedWord
   }
   
   try {
+    // Initialize OpenAI if not already initialized
+    if (!openai) {
+      openai = initializeOpenAI();
+      if (!openai) {
+        throw new Error('Azure OpenAI configuration is missing. Please check your environment variables.');
+      }
+    }
+
     // יצירת הפרומפט בהתאם לנושא ורמת האנגלית
     const prompt = createTopicPrompt(topicName, englishLevel, requiredWords);
     
     console.log('Sending request to OpenAI API');
     
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // אפשר להשתמש ב-"gpt-4" אם זמין
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
@@ -171,7 +188,7 @@ async function generatePost(topicName: string, englishLevel: string, learnedWord
     };
   } catch (error) {
     console.error('Error generating post with OpenAI:', error);
-    throw error; // זריקת השגיאה כדי שתטופל למעלה
+    throw error;
   }
 }
 

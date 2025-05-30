@@ -8,15 +8,15 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!body.email || !body.password) {
       return NextResponse.json(
-        { message: 'Email and password are required' },
+        { success: false, message: 'Email and password are required' },
         { status: 400 }
       );
     }
     
     const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
-    console.log('Attempting to connect to API:', apiUrl);
+    console.log('Attempting login at:', apiUrl);
     
-    // Make a real API call to your backend
+    // Forward login request to backend
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 
@@ -28,54 +28,57 @@ export async function POST(request: NextRequest) {
       })
     });
 
-    // Check content type before parsing
+    // Check if response is JSON
     const contentType = response.headers.get('content-type');
-    console.log('Response content type:', contentType);
-    
-    // Handle different response types
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json();
       
       if (response.ok) {
-        return NextResponse.json({
+        // Set auth cookie
+        const cookieOptions = {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax' as const,
+          maxAge: 7 * 24 * 60 * 60, // 7 days
+          path: '/'
+        };
+
+        const response = NextResponse.json({
           success: true,
-          message: 'Login successful',
           token: data.token,
           user: data.user
         });
+
+        response.cookies.set('auth_token', data.token, cookieOptions);
+        return response;
       } else {
         return NextResponse.json(
           { 
             success: false,
-            message: data.message || 'Login failed', 
-            details: data.details 
+            message: data.message || 'Login failed'
           },
           { status: response.status }
         );
       }
     } else {
-      // Not JSON, get text instead
+      // Handle non-JSON response
       const textResponse = await response.text();
-      console.error('Non-JSON response received:', textResponse.substring(0, 200));
+      console.error('Non-JSON response from login API:', textResponse.substring(0, 200));
       
       return NextResponse.json(
-        { 
+        {
           success: false,
-          message: 'Backend returned non-JSON response', 
-          status: response.status,
-          contentType: contentType || 'unknown'
+          message: 'Invalid response from authentication server'
         },
         { status: 500 }
       );
     }
-    
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
-        message: 'Login failed', 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        message: error instanceof Error ? error.message : 'Login failed'
       },
       { status: 500 }
     );

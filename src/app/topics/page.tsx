@@ -8,7 +8,7 @@ import TopicCard from '../components/TopicCard';
 import { useAuth } from '../../hooks/useAuth';
 import { clearAuthToken } from '../lib/auth';
 import Link from 'next/link';
-import { authenticatedApiCall } from '../../config/api';
+import api from '../../config/api';
 
 interface Topic {
   TopicName: string;
@@ -41,71 +41,65 @@ export default function Topics() {
   const [showProfile, setShowProfile] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, isInitialized } = useAuth();
   const router = useRouter();
   
-  // Add detailed logging for user role check
-  console.log('User data for admin check:', {
-    user,
-    role: user?.role,
-    UserRole: user?.UserRole,
-    rawUser: JSON.stringify(user)
-  });
-  
-  // Check both role and UserRole fields, and handle case-insensitive comparison
-  const isAdmin = Boolean(
-    (user?.role && typeof user.role === 'string' && user.role.toLowerCase() === 'admin') ||
-    (user?.UserRole && typeof user.UserRole === 'string' && user.UserRole.toLowerCase() === 'admin')
-  );
-  
-  console.log('Admin check:', {
-    user: user ? 'exists' : 'null',
-    roleCheck: user?.role && typeof user.role === 'string' ? user.role.toLowerCase() === 'admin' : false,
-    userRoleCheck: user?.UserRole && typeof user.UserRole === 'string' ? user.UserRole.toLowerCase() === 'admin' : false,
-    isAdmin
-  });
-
-  const handleLogout = () => {
-    clearAuthToken();
-    router.push('/login');
-  };
+  // Add detailed logging for authentication state
+  console.log('🔍 Topics page - Auth State:', { isAuthenticated, isLoading, isInitialized, user });
   
   // בדיקת אימות
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      console.log("המשתמש אינו מחובר, מעביר לדף התחברות");
-      router.push('/login');
-    }
-  }, [isAuthenticated, isLoading, router]);
+    const checkAuth = async () => {
+      console.log('🔄 Topics page - Checking auth:', { isInitialized, isLoading, isAuthenticated });
+      
+      if (isInitialized && !isLoading && !isAuthenticated) {
+        console.log("❌ User not authenticated, redirecting to login...");
+        try {
+          await router.push('/login');
+          console.log('✅ Navigation to login initiated');
+        } catch (error) {
+          console.error('❌ Navigation failed:', error);
+          // Fallback to direct navigation
+          window.location.href = '/login';
+        }
+      } else if (isInitialized && !isLoading && isAuthenticated) {
+        console.log("✅ User authenticated, staying on topics page");
+      }
+    };
+
+    checkAuth();
+  }, [isAuthenticated, isLoading, isInitialized, router]);
 
   // טעינת נתונים
   useEffect(() => {
     if (isAuthenticated) {
-      // טעינת נושאים
+      // Fetch topics
       const fetchTopics = async () => {
         try {
-          const data = await authenticatedApiCall('/topics');
+          const data = await api.topics.getAll();
           setTopics(data);
         } catch (error) {
           console.error('Error fetching topics:', error);
+          // Fallback to mock data if API fails
+          console.log('🔄 Using mock topics data as fallback');
+          setTopics([
+            { TopicName: "Medical", TopicHe: "רפואה", Icon: "🏥" },
+            { TopicName: "Legal", TopicHe: "משפטי", Icon: "⚖️" },
+            { TopicName: "Social", TopicHe: "חברתי", Icon: "👥" },
+            { TopicName: "Educational", TopicHe: "חינוכי", Icon: "📚" },
+            { TopicName: "Community", TopicHe: "קהילתי", Icon: "🏘️" },
+            { TopicName: "Employment", TopicHe: "תעסוקה", Icon: "💼" },
+            { TopicName: "Healthcare", TopicHe: "בריאות", Icon: "💊" },
+            { TopicName: "Rights", TopicHe: "זכויות", Icon: "🛡️" }
+          ]);
         }
       };
 
-      // טעינת נתוני משתמש
+      // Fetch user data
       const fetchUserData = async () => {
         try {
-          const data = await authenticatedApiCall('/user/data');
-          console.log('User data from API (full response):', data);
-          
-          // בדוק ספציפית את השדה של הציון
-          console.log('Score field specifically:', {
-            score: data.score,
-            Score: data.Score,
-            totalScore: data.totalScore,
-            TotalScore: data.TotalScore,
-            total_score: data.total_score,
-            scoreValue: data.scoreValue
-          });
+          const data = await api.user.getProfile();
+          console.log('User data from API:', data);
           
           setUserData({
             level: data.currentLevel || "Beginner",
@@ -118,6 +112,17 @@ export default function Topics() {
           });
         } catch (error) {
           console.error('Error fetching user data:', error);
+          // Fallback to mock data if API fails
+          console.log('🔄 Using mock user data as fallback');
+          setUserData({
+            level: "Beginner",
+            points: 150,
+            totalScore: 850,
+            completedTasks: 12,
+            activeSince: new Date().toLocaleDateString(),
+            nextLevel: "Intermediate", 
+            pointsToNextLevel: 250
+          });
         }
       };
 
@@ -135,18 +140,42 @@ export default function Topics() {
     setTimeout(() => setErrorMessage(null), 5000);
   };
 
-  // תצוגת טעינה
-  if (isLoading) {
-    return <div>Loading...</div>;
+  // Loading state
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 font-sans">
+        <div className="flex flex-col items-center bg-white p-8 rounded-lg shadow-lg">
+          <div className="text-2xl text-teal-600 mb-4">
+            {!isInitialized ? 'Initializing...' : 'Loading Topics...'}
+          </div>
+          <div className="w-16 h-16 border-t-4 border-b-4 border-teal-500 rounded-full animate-spin mb-4"></div>
+          <div className="text-sm text-gray-600 text-center">
+            {!isInitialized ? (
+              <p>Setting up your session...</p>
+            ) : (
+              <p>Fetching your personalized topics...</p>
+            )}
+          </div>
+          <div className="mt-4 text-xs text-gray-500">
+            Status: {!isInitialized ? 'Initializing Auth' : 'Loading Data'}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // אם לא מחובר, החזר null
+  // Not authenticated state
   if (!isAuthenticated) {
+    console.log('🚫 Topics page: User not authenticated, returning null...');
     return null;
   }
 
+  console.log('✅ Topics page: Rendering content for authenticated user');
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 relative">
+      {/* Debug Panel - Remove this after debugging */}
+
       {/* Google Font Import */}
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
@@ -194,7 +223,7 @@ export default function Topics() {
         </div>
 
         {/* Dashboard Button - מוצג רק למנהלים */}
-        {isAdmin && (
+        {user && user.role === 'admin' && (
           <div className="flex justify-center mb-4">
             <Link 
               href="/dashboard"
@@ -251,7 +280,10 @@ export default function Topics() {
       {/* Navigation */}
       <div className="absolute top-4 left-4 flex space-x-3">
         <button 
-          onClick={handleLogout}
+          onClick={() => {
+            clearAuthToken();
+            router.push('/login');
+          }}
           className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center hover:shadow-xl transform hover:scale-105 transition-all duration-300"
         >
           <span className="text-2xl">👋</span>
