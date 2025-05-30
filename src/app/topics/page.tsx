@@ -8,7 +8,7 @@ import TopicCard from '../components/TopicCard';
 import { useAuth } from '../../hooks/useAuth';
 import { clearAuthData } from '../../utils/auth-cookies';
 import Link from 'next/link';
-import { authenticatedApiCall } from '../../config/api';
+import { authenticatedApiCall, topicsEndpoints, userEndpoints } from '../../config/api';
 
 interface Topic {
   TopicName: string;
@@ -76,7 +76,7 @@ export default function Topics() {
       // Fetch topics
       const fetchTopics = async () => {
         try {
-          const data = await authenticatedApiCall('/topics');
+          const data = await topicsEndpoints.getAll();
           console.log('Topics data:', data);
           setTopics(data);
         } catch (error) {
@@ -99,13 +99,13 @@ export default function Topics() {
       // Fetch user data
       const fetchUserData = async () => {
         try {
-          const data = await authenticatedApiCall('/user-data');
+          const data = await userEndpoints.getData();
           console.log('User data from API:', data);
           
           setUserData({
             level: data.currentLevel || "Beginner",
             points: data.currentLevelPoints || 0,
-            totalScore: data.score || data.Score || data.totalScore || data.TotalScore || data.total_score || data.scoreValue || 0,
+            totalScore: data.totalScore || data.Score || data.score || 0,
             completedTasks: data.completedTasksCount || 0,
             activeSince: data.CreationDate ? new Date(data.CreationDate).toLocaleDateString() : "Today",
             nextLevel: data.nextLevel || "Intermediate",

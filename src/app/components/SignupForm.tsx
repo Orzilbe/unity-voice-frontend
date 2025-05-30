@@ -141,7 +141,11 @@ export default function SignupForm() {
 
         console.log('Registration response data:', data);
 
-        if (!data.success) {
+        // Check if registration was successful based on backend response structure
+        // Backend returns { message, token, user } on success
+        const isSuccess = !!(data.token && data.user);
+        
+        if (!isSuccess) {
           let errorMessage = data.message || 'Registration failed';
           
           // אם יש פרטי שגיאה נוספים, נציג אותם

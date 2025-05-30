@@ -1,88 +1,63 @@
 // apps/web/src/app/api/question/[questionId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { updateQuestion } from '../../../lib/dbUtils';
 
-// פונקציה לחילוץ מזהה המשתמש מהטוקן
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
-    return decoded.userId || decoded.id || null;
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    return null;
-  }
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
- * עדכון שאלה עם תשובה ומשוב
+ * PATCH /api/question/[questionId] - Proxy to backend for updating questions
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ questionId: string }> }
 ) {
-  const resolvedParams = await params;
-  const questionId = resolvedParams.questionId;
-  console.log(`PATCH /api/question/${questionId} - Request received`);
-  
   try {
-    // בדיקת אימות
+    const resolvedParams = await params;
+    const questionId = resolvedParams.questionId;
+    
+    console.log(`API Question Update - Proxying question update for questionId: ${questionId}`);
+    
+    // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error(`PATCH /api/question/${questionId} - No auth token found`);
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const token = authHeader.substring(7);
-    const userId = getUserIdFromToken(token);
-    
-    if (!userId) {
-      console.error(`PATCH /api/question/${questionId} - Invalid token`);
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    
-    // פענוח גוף הבקשה
-    const body = await request.json();
-    const { AnswerText, Feedback } = body;
-    
-    console.log(`PATCH /api/question/${questionId} - Request body:`, {
-      AnswerText: AnswerText ? AnswerText.substring(0, 30) + '...' : 'missing',
-      Feedback: Feedback ? (typeof Feedback === 'string' ? Feedback.substring(0, 30) + '...' : 'object') : 'missing'
-    });
-    
-    if (!AnswerText && !Feedback) {
-      console.error(`PATCH /api/question/${questionId} - Missing required fields`);
       return NextResponse.json(
-        { error: "At least one of AnswerText or Feedback is required" },
-        { status: 400 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
     
-    // עדכון השאלה באמצעות פונקציית העזר
-    const success = await updateQuestion(questionId, AnswerText, Feedback);
+    // Get request body
+    const body = await request.json();
+    console.log('Question update request body:', JSON.stringify(body, null, 2));
     
-    if (success) {
-      console.log(`Successfully updated question ${questionId}`);
-    } else {
-      console.warn(`Failed to update question in database`);
+    // Forward request to backend
+    const backendUrl = `${API_URL}/questions/${questionId}`;
+    console.log('Proxying question update request to:', backendUrl);
+    
+    const response = await fetch(backendUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend question update API error:', errorText);
+      return NextResponse.json(
+        { error: 'Failed to update question in backend' },
+        { status: response.status }
+      );
     }
     
-    // החזרת תגובה בין אם פעולת מסד הנתונים הצליחה או לא
-    return NextResponse.json({
-      success: true,
-      QuestionId: questionId,
-      ...(AnswerText !== undefined && { AnswerText }),
-      ...(Feedback !== undefined && { Feedback })
-    });
+    const data = await response.json();
+    console.log(`Question ${questionId} updated successfully:`, data);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error(`Error in question update API for ${questionId}:`, error);
+    console.error('Error proxying question update request:', error);
     return NextResponse.json(
-      { 
-        success: false,
-        error: "Failed to update question",
-        details: error instanceof Error ? error.message : 'Unknown error',
-        QuestionId: resolvedParams.questionId
-      },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

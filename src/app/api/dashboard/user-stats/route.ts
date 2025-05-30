@@ -1,106 +1,52 @@
 // apps/web/src/app/api/dashboard/user-stats/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '../../../lib/dbUtils';
-import { verifyAuthToken } from '../../../../lib/auth';
-import { RowDataPacket } from 'mysql2';
 
-interface UserStatsResult extends RowDataPacket {
-  totalUsers?: number;
-  activeUsers?: number;
-  newUsersThisMonth?: number;
-  newUsersLastMonth?: number;
-  averageScore?: number;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+/**
+ * GET /api/dashboard/user-stats - Proxy to backend for user statistics
+ */
 export async function GET(request: NextRequest) {
   try {
-    // וידוא אימות המשתמש
-    const authHeader = request.headers.get('authorization');
+    console.log("API Dashboard User Stats - Proxying to backend");
+    
+    // Get token from Authorization header
+    const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ message: 'לא מורשה' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const userData = verifyAuthToken(token);
-    
-    if (!userData) {
-      return NextResponse.json({ message: 'טוקן לא תקף' }, { status: 401 });
-    }
-
-    // סה"כ משתמשים
-    const totalUsersQuery = `
-      SELECT COUNT(*) as totalUsers FROM users WHERE IsActive = 1
-    `;
-    
-    // משתמשים פעילים (שהתחברו ב-30 הימים האחרונים)
-    const activeUsersQuery = `
-      SELECT COUNT(*) as activeUsers 
-      FROM users 
-      WHERE LastLogin > DATE_SUB(NOW(), INTERVAL 30 DAY) AND IsActive = 1
-    `;
-    
-    // משתמשים חדשים החודש
-    const newUsersThisMonthQuery = `
-      SELECT COUNT(*) as newUsersThisMonth
-      FROM users 
-      WHERE DATE_FORMAT(CreationDate, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
-    `;
-    
-    // ציון ממוצע
-    const averageScoreQuery = `
-      SELECT AVG(Score) as averageScore FROM users WHERE IsActive = 1
-    `;
-    
-    // משתמשים חדשים בחודש הקודם (לחישוב שינוי)
-    const newUsersLastMonthQuery = `
-      SELECT COUNT(*) as newUsersLastMonth
-      FROM users 
-      WHERE DATE_FORMAT(CreationDate, '%Y-%m') = DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 1 MONTH), '%Y-%m')
-    `;
-    
-    // ביצוע השאילתות
-    const [totalUsersRes, activeUsersRes, newUsersThisMonthRes, averageScoreRes, newUsersLastMonthRes] = 
-      await Promise.all([
-        executeQuery(totalUsersQuery, [], 'Fetch total users'),
-        executeQuery(activeUsersQuery, [], 'Fetch active users'),
-        executeQuery(newUsersThisMonthQuery, [], 'Fetch new users this month'),
-        executeQuery(averageScoreQuery, [], 'Fetch average score'),
-        executeQuery(newUsersLastMonthQuery, [], 'Fetch new users last month')
-      ]);
-
-    // בדיקה אם כל השאילתות הצליחו
-    if (!totalUsersRes.success || !activeUsersRes.success || !newUsersThisMonthRes.success || 
-        !averageScoreRes.success || !newUsersLastMonthRes.success) {
-      console.error('Database query failed');
       return NextResponse.json(
-        { message: 'שגיאה בשאילתת מסד הנתונים' }, 
-        { status: 500 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
-
-    // חישוב שיעורי השינוי
-    const newUsersThisMonth = (newUsersThisMonthRes.result as UserStatsResult[])?.[0]?.newUsersThisMonth || 0;
-    const newUsersLastMonth = (newUsersLastMonthRes.result as UserStatsResult[])?.[0]?.newUsersLastMonth || 0;
-    const newUserGrowth = newUsersLastMonth > 0 
-      ? ((newUsersThisMonth - newUsersLastMonth) / newUsersLastMonth * 100).toFixed(1)
-      : '0';
-
-    const stats = {
-      totalUsers: (totalUsersRes.result as UserStatsResult[])?.[0]?.totalUsers || 0,
-      activeUsers: (activeUsersRes.result as UserStatsResult[])?.[0]?.activeUsers || 0,
-      newUsersThisMonth: newUsersThisMonth,
-      averageScore: Math.round((averageScoreRes.result as UserStatsResult[])?.[0]?.averageScore || 0),
-      userGrowth: 0,
-      activityChange: 0,
-      newUserGrowth: parseFloat(newUserGrowth),
-      scoreChange: 0
-    };
-
-    return NextResponse.json(stats);
+    
+    // Forward request to backend
+    const backendUrl = `${API_URL}/dashboard/user-stats`;
+    console.log('Proxying user stats request to:', backendUrl);
+    
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend user stats API error:', errorText);
+      return NextResponse.json(
+        { error: 'Failed to fetch user stats from backend' },
+        { status: response.status }
+      );
+    }
+    
+    const data = await response.json();
+    console.log(`User stats retrieved successfully:`, data);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching user stats:', error);
+    console.error('Error proxying user stats request:', error);
     return NextResponse.json(
-      { message: 'שגיאה בלתי צפויה' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -1,41 +1,38 @@
 // apps/web/src/app/api/user-data/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+/**
+ * GET /api/user-data - Proxy to backend for fetching user data with statistics
+ */
 export async function GET(request: NextRequest) {
   try {
     // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
-        { message: 'Unauthorized - No token found' },
+        { message: 'Unauthorized - Invalid token' },
         { status: 401 }
       );
     }
     
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    // Forward request to backend
+    const backendUrl = `${API_URL}/user-profile/data`;
+    console.log('Proxying user data request to:', backendUrl);
     
-    // Fetch user data from backend API
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/user/data`;
-    console.log('Fetching user data from:', apiUrl);
-    
-    try {
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!response.ok) {
-        console.log('Failed to fetch user data from backend');
-        throw new Error('Failed to fetch user data from backend');
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
       }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend user data API error:', errorText);
       
-      const userData = await response.json();
-      return NextResponse.json(userData);
-    } catch {
-      // Use mock data for development or when backend fails
-      console.log('Using mock user data');
-      
+      // Fallback to mock data if backend fails
       const mockUserData = {
         currentLevel: "Beginner",
         currentLevelPoints: 0,
@@ -43,15 +40,36 @@ export async function GET(request: NextRequest) {
         completedTasksCount: 0,
         CreationDate: new Date().toISOString(),
         nextLevel: "Intermediate",
-        pointsToNextLevel: 100
+        pointsToNextLevel: 100,
+        FirstName: '',
+        LastName: '',
+        Email: '',
+        totalActivities: 0
       };
       
       return NextResponse.json(mockUserData);
     }
-  } catch {
-    return NextResponse.json(
-      { error: 'Database error occurred' },
-      { status: 500 }
-    );
+    
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error proxying user data request:', error);
+    
+    // Fallback to mock data if everything fails
+    const mockUserData = {
+      currentLevel: "Beginner",
+      currentLevelPoints: 0,
+      Score: 0,
+      completedTasksCount: 0,
+      CreationDate: new Date().toISOString(),
+      nextLevel: "Intermediate",
+      pointsToNextLevel: 100,
+      FirstName: '',
+      LastName: '',
+      Email: '',
+      totalActivities: 0
+    };
+    
+    return NextResponse.json(mockUserData);
   }
 }

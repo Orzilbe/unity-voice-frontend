@@ -1,170 +1,53 @@
 // apps/web/src/app/api/dashboard/export/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '../../../lib/dbUtils';
-import { verifyAuthToken } from '../../../../lib/auth';
-import { RowDataPacket } from 'mysql2';
 
-interface ExportResult extends RowDataPacket {
-  category: string;
-  data: string;
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-interface ExportData {
-  metadata: {
-    exportDate: string;
-    exportedBy: string;
-    format: string;
-  };
-  data: Record<string, unknown>;
-}
-
-interface TopicData {
-  TopicName: string;
-  TopicHe: string;
-  total_tasks: number;
-  completed_tasks: number;
-  avg_score: number;
-}
-
-interface UserStats {
-  total_users: number;
-  active_users: number;
-  average_score: number;
-  total_tasks: number;
-  completed_tasks: number;
-  total_words: number;
-  last_updated: string;
-}
-
+/**
+ * GET /api/dashboard/export - Proxy to backend for data export
+ */
 export async function GET(request: NextRequest) {
   try {
-    // וידוא אימות המשתמש
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ message: 'לא מורשה' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const userData = verifyAuthToken(token);
+    console.log("API Dashboard Export - Proxying to backend");
     
-    if (!userData) {
-      return NextResponse.json({ message: 'אין הרשאה לייצוא נתונים' }, { status: 403 });
-    }
-
-    // קבלת פורמט הייצוא
-    const { searchParams } = new URL(request.url);
-    const format = searchParams.get('format') || 'json';
-
-    // שאילתה משולבת לכל הנתונים
-    const fullDataQuery = `
-      SELECT 
-        'user_stats' as category,
-        JSON_OBJECT(
-          'total_users', (SELECT COUNT(*) FROM users WHERE IsActive = 1),
-          'active_users', (SELECT COUNT(*) FROM users WHERE LastLogin > DATE_SUB(NOW(), INTERVAL 30 DAY)),
-          'average_score', (SELECT AVG(Score) FROM users WHERE IsActive = 1),
-          'total_tasks', (SELECT COUNT(*) FROM tasks),
-          'completed_tasks', (SELECT COUNT(*) FROM tasks WHERE CompletionDate IS NOT NULL),
-          'total_words', (SELECT COUNT(*) FROM words),
-          'last_updated', NOW()
-        ) as data
-      UNION ALL
-      SELECT 
-        'topics' as category,
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'TopicName', t.TopicName,
-            'TopicHe', t.TopicHe,
-            'total_tasks', COUNT(task.TaskId),
-            'completed_tasks', COUNT(task.CompletionDate),
-            'avg_score', ROUND(AVG(task.TaskScore), 1)
-          )
-        ) as data
-      FROM topics t
-      LEFT JOIN tasks task ON t.TopicName = task.TopicName
-      GROUP BY NULL
-    `;
-
-    const response = await executeQuery(fullDataQuery, [], 'Export dashboard data');
-
-    if (!response.success) {
-      console.error('Database query failed:', response.error);
+    // Get token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
-        { message: 'שגיאה בשאילתת מסד הנתונים' }, 
-        { status: 500 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
-
-    // עיצוב הנתונים לייצוא
-    const exportData: ExportData = {
-      metadata: {
-        exportDate: new Date().toISOString(),
-        exportedBy: userData.FirstName + ' ' + userData.LastName,
-        format: format
-      },
-      data: {}
-    };
-
-    // ארגון הנתונים לפי קטגוריות
-    (response.result as ExportResult[])?.forEach(item => {
-      try {
-        exportData.data[item.category] = JSON.parse(item.data) as UserStats | TopicData[];
-      } catch (e) {
-        console.error('Error parsing data for category:', item.category, e);
+    
+    // Forward request to backend
+    const backendUrl = `${API_URL}/dashboard/export`;
+    console.log('Proxying data export request to:', backendUrl);
+    
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
       }
     });
-
-    // החזרת הנתונים בפורמט המבוקש
-    if (format === 'csv') {
-      // הסבת נתונים ל-CSV
-      const csv = convertToCSV(exportData);
-      return new NextResponse(csv, {
-        headers: {
-          'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="dashboard-export-${new Date().toISOString().split('T')[0]}.csv"`
-        }
-      });
-    } else {
-      // החזרה בפורמט JSON
-      return NextResponse.json(exportData);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend data export API error:', errorText);
+      return NextResponse.json(
+        { error: 'Failed to export data from backend' },
+        { status: response.status }
+      );
     }
+    
+    const data = await response.json();
+    console.log(`Data export retrieved successfully`);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error exporting dashboard data:', error);
+    console.error('Error proxying data export request:', error);
     return NextResponse.json(
-      { message: 'שגיאה בלתי צפויה בייצוא נתונים' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-}
-
-// פונקציה להמרת נתונים ל-CSV (דוגמה בסיסית)
-function convertToCSV(data: ExportData): string {
-  let csv = '';
-  
-  // הוספת מטא-דטא
-  csv += '=== Dashboard Export ===' + '\n';
-  csv += `Export Date: ${data.metadata.exportDate}\n`;
-  csv += `Exported By: ${data.metadata.exportedBy}\n\n`;
-  
-  // הוספת נתוני משתמשים
-  if (data.data.user_stats) {
-    csv += '=== User Statistics ===' + '\n';
-    const userStats = data.data.user_stats as UserStats;
-    Object.entries(userStats).forEach(([key, value]) => {
-      csv += `${key},${value}\n`;
-    });
-    csv += '\n';
-  }
-  
-  // הוספת נתוני נושאים
-  if (data.data.topics && Array.isArray(data.data.topics)) {
-    csv += '=== Topics Overview ===' + '\n';
-    csv += 'Topic Name,Topic (Hebrew),Total Tasks,Completed Tasks,Average Score\n';
-    const topics = data.data.topics as TopicData[];
-    topics.forEach((topic: TopicData) => {
-      csv += `${topic.TopicName},${topic.TopicHe},${topic.total_tasks},${topic.completed_tasks},${topic.avg_score}\n`;
-    });
-  }
-  
-  return csv;
 }

@@ -1,91 +1,58 @@
 // apps/web/src/app/api/interactive-session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
-import jwt from 'jsonwebtoken';
-import { createInteractiveSession } from '../../../lib/dbUtils';
 
-// Function to extract user ID from token
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
-    return decoded.userId || decoded.id || null;
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    return null;
-  }
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
- * יצירת שיחה אינטראקטיבית חדשה
+ * POST /api/interactive-session - Proxy to backend for creating interactive sessions
  */
 export async function POST(request: NextRequest) {
-  console.log("POST /api/interactive-session - Creating interactive session");
-  
-  let body: { taskId?: string; sessionType?: string; SessionId?: string } = {};
-  
   try {
-    // Get authentication token
+    console.log("API Interactive Session - Proxying session creation to backend");
+    
+    // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('POST /api/interactive-session - No auth token found');
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const token = authHeader.substring(7);
-    const userId = getUserIdFromToken(token);
-    
-    if (!userId) {
-      console.error('POST /api/interactive-session - Invalid token');
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    
-    // Parse request body
-    body = await request.json();
-    const { taskId, sessionType = 'conversation' } = body;
-    
-    console.log('POST /api/interactive-session - Request body:', body);
-    
-    if (!taskId) {
-      console.error('POST /api/interactive-session - No taskId provided');
       return NextResponse.json(
-        { error: "Task ID is required" },
-        { status: 400 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
     
-    // יצירת מזהה שיחה ייחודי
-    const sessionId = body.SessionId || uuidv4();
-    console.log(`Generated session ID: ${sessionId} for task ${taskId}`);
+    // Get request body
+    const body = await request.json();
+    console.log('Request body:', JSON.stringify(body, null, 2));
     
-    // יצירת שיחה אינטראקטיבית באמצעות פונקציית העזר
-    const success = await createInteractiveSession(sessionId, taskId, sessionType);
+    // Forward request to backend
+    const backendUrl = `${API_URL}/interactive-sessions`;
+    console.log('Proxying interactive session creation request to:', backendUrl);
     
-    if (success) {
-      console.log(`Successfully created interactive session ${sessionId} for task ${taskId}`);
-    } else {
-      console.warn(`Failed to create interactive session in database, using local session ID`);
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend interactive session API error:', errorText);
+      return NextResponse.json(
+        { error: 'Failed to create interactive session in backend' },
+        { status: response.status }
+      );
     }
     
-    // החזרת מזהה השיחה בין אם פעולת מסד הנתונים הצליחה או לא
-    return NextResponse.json({
-      success: true,
-      SessionId: sessionId,
-      TaskId: taskId,
-      SessionType: sessionType
-    });
+    const data = await response.json();
+    console.log(`Interactive session created successfully:`, data);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error in interactive-session API:", error);
-    
-    // יצירת מזהה שיחה חלופי במקרה של שגיאה
-    const fallbackSessionId = uuidv4();
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Using fallback session ID due to error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      SessionId: fallbackSessionId,
-      TaskId: body?.taskId || 'unknown',
-      SessionType: body?.sessionType || 'conversation'
-    });
+    console.error('Error proxying interactive session creation request:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

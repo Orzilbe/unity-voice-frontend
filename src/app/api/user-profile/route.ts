@@ -1,21 +1,10 @@
 // apps/web/src/app/api/user-profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import { getSafeDbPool } from '../../lib/db';
 
-// Function to extract user ID from token
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
-    return decoded.userId || decoded.id || null;
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    return null;
-  }
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
- * GET /api/user-profile - Get user profile information
+ * GET /api/user-profile - Proxy to backend for fetching user profile
  */
 export async function GET(request: NextRequest) {
   try {
@@ -28,78 +17,83 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    const userId = getUserIdFromToken(token);
+    // Forward request to backend
+    const backendUrl = `${API_URL}/user-profile`;
+    console.log('Proxying user profile request to:', backendUrl);
     
-    if (!userId) {
+    const response = await fetch(backendUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend user profile API error:', errorText);
       return NextResponse.json(
-        { message: 'Unauthorized - Invalid token' },
+        { error: 'Failed to fetch user profile from backend' },
+        { status: response.status }
+      );
+    }
+    
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error proxying user profile request:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/user-profile - Proxy to backend for updating user profile
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    // Get token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { message: 'Unauthorized - No token found' },
         { status: 401 }
       );
     }
     
-    // Try to get user from database
-    const pool = await getSafeDbPool();
-    if (!pool) {
-      throw new Error('Failed to connect to database');
-    }
-
-    const [rows] = await pool.query(
-      `SELECT 
-        UserId,
-        FirstName,
-        LastName,
-        Email,
-        PhoneNumber,
-        EnglishLevel,
-        AgeRange,
-        ProfilePicture,
-        CreationDate,
-        LastLogin,
-        Score
-      FROM Users 
-      WHERE UserId = ?`,
-      [userId]
-    );
+    // Get request body
+    const body = await request.json();
     
-    if (!Array.isArray(rows) || rows.length === 0) {
+    // Forward request to backend
+    const backendUrl = `${API_URL}/user-profile`;
+    console.log('Proxying user profile update request to:', backendUrl);
+    
+    const response = await fetch(backendUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend user profile update API error:', errorText);
       return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
+        { error: 'Failed to update user profile in backend' },
+        { status: response.status }
       );
     }
-
-    const userData = rows[0] as {
-      UserId: number;
-      FirstName: string;
-      LastName: string;
-      Email: string;
-      PhoneNumber: string;
-      EnglishLevel: string;
-      AgeRange: string;
-      ProfilePicture: string | null;
-      CreationDate: Date;
-      LastLogin: Date | null;
-      Score: number;
-    };
     
-    // Return user profile with all necessary fields
-    return NextResponse.json({
-      FirstName: userData.FirstName || '',
-      LastName: userData.LastName || '',
-      Email: userData.Email || '',
-      PhoneNumber: userData.PhoneNumber || '',
-      EnglishLevel: userData.EnglishLevel || 'Not Set',
-      AgeRange: userData.AgeRange || '',
-      ProfilePicture: userData.ProfilePicture || null,
-      CreationDate: userData.CreationDate || new Date(),
-      LastLogin: userData.LastLogin || null,
-      Score: userData.Score || 0
-    });
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error in /api/user-profile route:', error);
+    console.error('Error proxying user profile update request:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

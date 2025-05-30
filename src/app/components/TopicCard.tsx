@@ -1,7 +1,7 @@
 // apps/web/src/app/components/TopicCard.tsx
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { authenticatedApiCall } from '../../config/api';
+import { taskEndpoints } from '../../config/api';
 
 interface Topic {
   TopicName: string;
@@ -48,14 +48,11 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
       
       try {
         // יצירת משימה חדשה - שימוש ב-endpoint הנכון
-        const taskData = await authenticatedApiCall('/create-task', {
-          method: 'POST',
-          body: JSON.stringify({
-            UserId: userId,
-            TopicName: topic.TopicName,
-            Level: 1, // התחלה מרמה 1
-            TaskType: 'flashcard' // סוג המשימה הראשונה
-          })
+        const taskData = await taskEndpoints.create({
+          UserId: userId,
+          TopicName: topic.TopicName,
+          Level: 1, // התחלה מרמה 1
+          TaskType: 'flashcard' // סוג המשימה הראשונה
         });
 
         // בדיקה שהתשובה תקינה

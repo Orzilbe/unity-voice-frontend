@@ -1,91 +1,58 @@
 // apps/web/src/app/api/question/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
-import jwt from 'jsonwebtoken';
-import { createQuestion } from '../../lib/dbUtils';
 
-// Function to extract user ID from token
-function getUserIdFromToken(token: string): string | null {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_secret') as { userId?: string; id?: string };
-    return decoded.userId || decoded.id || null;
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    return null;
-  }
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
- * יצירת שאלה חדשה
+ * POST /api/question - Proxy to backend for creating questions
  */
 export async function POST(request: NextRequest) {
-  console.log("POST /api/question - Creating question");
-  
-  let body: { SessionId?: string; QuestionText?: string; sessionId?: string; questionText?: string; QuestionId?: string } = {};
-  
   try {
-    // בדיקת אימות
+    console.log("API Question - Proxying question creation to backend");
+    
+    // Get token from Authorization header
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('POST /api/question - No auth token found');
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    
-    const token = authHeader.substring(7);
-    const userId = getUserIdFromToken(token);
-    
-    if (!userId) {
-      console.error('POST /api/question - Invalid token');
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-    
-    // פענוח גוף הבקשה
-    body = await request.json();
-    const { QuestionId, SessionId, QuestionText } = body;
-    
-    console.log('POST /api/question - Request body:', {
-      QuestionId,
-      SessionId,
-      QuestionText: QuestionText ? QuestionText.substring(0, 30) + '...' : 'missing'
-    });
-    
-    if (!SessionId || !QuestionId || !QuestionText) {
-      console.error('POST /api/question - Missing required fields');
       return NextResponse.json(
-        { error: "SessionId, QuestionId, and QuestionText are required" },
-        { status: 400 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
     
-    // יצירת שאלה באמצעות פונקציית העזר
-    const success = await createQuestion(QuestionId, SessionId, QuestionText);
+    // Get request body
+    const body = await request.json();
+    console.log('Request body:', JSON.stringify(body, null, 2));
     
-    if (success) {
-      console.log(`Successfully created question ${QuestionId} for session ${SessionId}`);
-    } else {
-      console.warn(`Failed to create question in database, using local question ID`);
+    // Forward request to backend
+    const backendUrl = `${API_URL}/questions`;
+    console.log('Proxying question creation request to:', backendUrl);
+    
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Backend questions API error:', errorText);
+      return NextResponse.json(
+        { error: 'Failed to create question in backend' },
+        { status: response.status }
+      );
     }
     
-    // החזרת נתוני השאלה בין אם פעולת מסד הנתונים הצליחה או לא
-    return NextResponse.json({
-      success: true,
-      QuestionId,
-      SessionId,
-      QuestionText
-    });
+    const data = await response.json();
+    console.log(`Question created successfully:`, data);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error in question API:", error);
-    
-    // יצירת מזהה שאלה חלופי במקרה של שגיאה
-    const fallbackQuestionId = uuidv4();
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Using fallback question ID due to error',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      QuestionId: fallbackQuestionId,
-      SessionId: body?.SessionId || 'unknown',
-      QuestionText: body?.QuestionText || 'Error occurred'
-    });
+    console.error('Error proxying question creation request:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

@@ -9,6 +9,7 @@ import { getAuthToken } from '../../../../../lib/auth';
 import { useAuth } from '../../../../../hooks/useAuth';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTopicNameForDb, formatTopicNameForUrl } from '../../../../lib/topicUtils';
+import { flashcardEndpoints, taskEndpoints, topicsEndpoints } from '../../../../../config/api';
 
 interface Flashcard {
   WordId: string;
@@ -33,7 +34,7 @@ interface WordToTaskMapping {
 }
 
 export default function FlashcardTask() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -54,6 +55,9 @@ export default function FlashcardTask() {
   const [showReviewedWordsModal, setShowReviewedWordsModal] = useState(false);
   const [allWordsReviewed, setAllWordsReviewed] = useState(false);
 
+  // Get user ID from auth context
+  const userId = user?.UserId || user?.userId || user?.id || '';
+
   // NEW: Fetch the user's actual level for this topic
   useEffect(() => {
     if (!isAuthenticated || isLoading) return;
@@ -62,151 +66,79 @@ export default function FlashcardTask() {
       try {
         setIsLoadingUserLevel(true);
         
-        // Get auth token
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error('Authentication required');
-        }
+        // For now, just use the level from the URL
+        // In the future, we can implement a proper user level endpoint
+        const levelFromUrl = parseInt(providedLevel, 10) || 1;
+        console.log(`Using level from URL: ${levelFromUrl}`);
+        setUserLevel(levelFromUrl);
         
-        // Extract user ID directly from the auth token for debugging
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.log('Token payload for debugging:', { 
-              id: payload.id,
-              userId: payload.userId,
-              email: payload.email
-            });
-          }
-        } catch (err) {
-          console.error('Error parsing token for debug:', err);
-        }
-        
-        // Format topic name for DB
-        const formattedTopicName = formatTopicNameForDb(topicName);
-        console.log(`Fetching user level for topic: "${formattedTopicName}"`);
-        
-        // Log the token for debugging (without showing the full token)
-        console.log(`Auth token for debug (first 10 chars): ${token.substring(0, 10)}...`);
-        
-        // Log the request URL
-        const requestUrl = `/api/user/level?topicName=${encodeURIComponent(formattedTopicName)}`;
-        console.log(`Making request to: ${requestUrl}`);
-        
-        // Query the new API endpoint to get the user's current level
-        const response = await fetch(requestUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        // Log the response status
-        console.log(`Level API response status: ${response.status}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Level API response data:', data);
-          
-          const userCurrentLevel = data.level || 1;
-          
-          console.log(`User's current level for topic "${formattedTopicName}": ${userCurrentLevel}`);
-          setUserLevel(userCurrentLevel);
-          
-          // If URL has a different level than user's current level, redirect to the correct level
-          if (providedLevel && parseInt(providedLevel, 10) !== userCurrentLevel) {
-            console.log(`Redirecting user from level ${providedLevel} to their current level ${userCurrentLevel}`);
-            
-            // Construct the URL with the correct level
-            const urlTopicName = formatTopicNameForUrl(topicName);
-            router.replace(`/topics/${urlTopicName}/tasks/flashcard?level=${userCurrentLevel}`);
-          }
-        } else {
-          console.warn('Failed to fetch user level, using provided level:', providedLevel);
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
-          // Keep using the level from the URL if API fails
-        }
       } catch (err) {
-        console.error('Error fetching user level:', err);
-        // Fall back to using the provided level
+        console.error('Error setting user level:', err);
+        // Fall back to level 1
+        setUserLevel(1);
       } finally {
         setIsLoadingUserLevel(false);
       }
     };
     
     fetchUserLevel();
-  }, [isAuthenticated, isLoading, topicName, providedLevel, router]);
+  }, [isAuthenticated, isLoading, providedLevel]);
 
   // Load flashcards on component mount - Updated to use userLevel instead of level from URL
   useEffect(() => {
-    if (!isAuthenticated || isLoading || isLoadingUserLevel) return;
-
-    // קביעת מספר אקראי בין 5 ל-7 של מילים להצגה
-    const getRandomFlashcardCount = () => {
-      return Math.floor(Math.random() * 3) + 5; // יחזיר 5, 6, או 7
-    };
+    if (!isAuthenticated || isLoading || isLoadingUserLevel || !userId) return;
     
     const loadFlashcards = async () => {
       try {
         setIsLoadingCards(true);
         setError(null);
         
-        // Get auth token
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error('Authentication required');
-        }
-        
-        // Extract user ID directly from the auth token for debugging
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            console.log('Token payload in loadFlashcards:', { 
-              id: payload.id,
-              userId: payload.userId,
-              email: payload.email
-            });
-          }
-        } catch (err) {
-          console.error('Error parsing token for debug:', err);
-        }
-        
         // Format topic name consistently - IMPORTANT: Use the DB format (with spaces)
         const formattedTopicName = formatTopicNameForDb(topicName);
         
         console.log(`Loading flashcards for topic: "${formattedTopicName}", user level: ${userLevel}`);
+        console.log(`Original topic name from URL: "${topicName}"`);
+        
+        // First, validate that the topic exists by checking available topics
+        try {
+          console.log('Validating topic exists...');
+          const availableTopics = await topicsEndpoints.getAll();
+          console.log('Available topics:', availableTopics);
+          
+          // Check if our topic exists in the available topics
+          const topicExists = Array.isArray(availableTopics) && 
+            availableTopics.some((t: any) => 
+              t.TopicName === formattedTopicName || 
+              t.TopicName?.toLowerCase() === formattedTopicName.toLowerCase()
+            );
+          
+          if (!topicExists) {
+            console.log(`Topic "${formattedTopicName}" not found in available topics. Available topics:`, 
+              availableTopics.map((t: any) => t.TopicName));
+            throw { status: 404, message: `Topic "${formattedTopicName}" not found` };
+          }
+          
+          console.log(`Topic "${formattedTopicName}" validated successfully`);
+        } catch (topicValidationError) {
+          console.error('Topic validation failed:', topicValidationError);
+          
+          // If we can't validate topics, we'll still try to load flashcards
+          // This allows fallback to mock data if the backend is having issues
+          console.log('Topic validation failed, but continuing with flashcard loading...');
+        }
         
         // Create task if needed - Use the user's current level instead of URL level
         if (!taskId) {
           try {
-            const taskResponse = await fetch('/api/tasks', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                TopicName: formattedTopicName, // Use the properly formatted topic name with spaces
-                Level: userLevel, // Use the current user level
-                TaskType: 'flashcard',
-                StartDate: new Date().toISOString()
-              })
+            const taskData = await taskEndpoints.create({
+              UserId: userId,
+              TopicName: formattedTopicName,
+              Level: userLevel,
+              TaskType: 'flashcard'
             });
             
-            console.log(`Task creation response status: ${taskResponse.status}`);
-            
-            if (!taskResponse.ok) {
-              console.warn('Warning: Task creation failed, using temporary task ID');
-              // Use temporary task ID if API fails
-              const tempTaskId = `client_${uuidv4()}`;
-              setTaskId(tempTaskId);
-            } else {
-              const taskData = await taskResponse.json();
-              setTaskId(taskData.TaskId);
-              console.log('Task created successfully with ID:', taskData.TaskId);
-            }
+            setTaskId(taskData.TaskId);
+            console.log('Task created successfully with ID:', taskData.TaskId);
           } catch (err) {
             console.error('Task creation error:', err);
             // Use temporary task ID if API fails
@@ -215,38 +147,76 @@ export default function FlashcardTask() {
           }
         }
         
-        // Fetch words for the current topic and user level
-        const wordsResponse = await fetch(`/api/services/getFilteredWords?userId=current&topicName=${encodeURIComponent(formattedTopicName)}&level=${userLevel}&limit=${getRandomFlashcardCount()}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        // Fetch flashcards from the backend
+        try {
+          console.log(`Calling flashcard endpoint with topic: "${formattedTopicName}", level: ${userLevel}`);
+          const flashcardData = await flashcardEndpoints.getByTopicAndLevel(formattedTopicName, userLevel);
+          
+          console.log('Flashcard API response:', flashcardData);
+          
+          if (!Array.isArray(flashcardData) || flashcardData.length === 0) {
+            throw new Error('No words available for this topic and level');
           }
-        });
-        
-        console.log(`Words API response status: ${wordsResponse.status}`);
-        
-        if (!wordsResponse.ok) {
-          throw new Error(`Failed to load words: ${wordsResponse.status}`);
+          
+          // Transform the data if needed
+          const transformedFlashcards: Flashcard[] = flashcardData.map((word: any) => ({
+            WordId: word.WordId,
+            Word: word.Word,
+            Translation: word.Translation,
+            ExampleUsage: word.ExampleUsage || `Example: ${word.Word} is used in context.`,
+            TopicName: word.TopicName,
+            StartDate: new Date().toISOString()
+          }));
+          
+          console.log(`Loaded ${transformedFlashcards.length} flashcards:`, transformedFlashcards);
+          setFlashcards(transformedFlashcards);
+        } catch (flashcardError) {
+          console.error('Flashcard loading error details:', {
+            error: flashcardError,
+            errorType: typeof flashcardError,
+            errorKeys: flashcardError && typeof flashcardError === 'object' ? Object.keys(flashcardError) : [],
+            errorMessage: flashcardError instanceof Error ? flashcardError.message : 'Not an Error instance',
+            errorStringified: JSON.stringify(flashcardError, null, 2)
+          });
+          
+          // If the topic doesn't exist, redirect to topics page
+          if (flashcardError && typeof flashcardError === 'object' && 'status' in flashcardError) {
+            if (flashcardError.status === 404) {
+              console.log(`Topic "${formattedTopicName}" not found, redirecting to topics page`);
+              setError(`The topic "${formattedTopicName}" was not found. Redirecting to topics page...`);
+              // Redirect after a short delay to show the error message
+              setTimeout(() => {
+                router.push('/topics');
+              }, 2000);
+              return;
+            } else if (flashcardError.status === 401) {
+              console.log('Authentication failed, redirecting to login');
+              setError('Authentication failed. Redirecting to login...');
+              setTimeout(() => {
+                router.push('/login');
+              }, 2000);
+              return;
+            }
+          }
+          
+          // For any other errors, try to get a meaningful message
+          let errorMessage = 'Failed to load flashcards';
+          if (flashcardError instanceof Error) {
+            errorMessage = flashcardError.message;
+          } else if (flashcardError && typeof flashcardError === 'object') {
+            const errorObj = flashcardError as any;
+            if ('message' in errorObj && errorObj.message) {
+              errorMessage = String(errorObj.message);
+            } else if ('statusText' in errorObj && errorObj.statusText) {
+              errorMessage = `${errorObj.statusText} (${errorObj.status || 'unknown status'})`;
+            } else if ('status' in errorObj) {
+              errorMessage = `HTTP ${errorObj.status} error occurred`;
+            }
+          }
+          
+          console.log(`Final error message: ${errorMessage}`);
+          throw new Error(errorMessage);
         }
-        
-        const wordsData = await wordsResponse.json();
-        console.log('Words API response:', wordsData);
-        
-        if (!Array.isArray(wordsData) || wordsData.length === 0) {
-          throw new Error('No words available for this topic and level');
-        }
-        
-        // Transform the words data into flashcard format
-        const flashcardData: Flashcard[] = wordsData.map((word: WordData) => ({
-          WordId: word.WordId,
-          Word: word.Word,
-          Translation: word.Translation,
-          ExampleUsage: word.ExampleUsage || `Example: ${word.Word} is used in context.`,
-          TopicName: word.TopicName,
-          StartDate: new Date().toISOString()
-        }));
-        
-        console.log(`Loaded ${flashcardData.length} flashcards:`, flashcardData);
-        setFlashcards(flashcardData);
         
       } catch (err) {
         console.error('Error loading flashcards:', err);
@@ -257,7 +227,7 @@ export default function FlashcardTask() {
     };
     
     loadFlashcards();
-  }, [isAuthenticated, isLoading, isLoadingUserLevel, userLevel, topicName, taskId]);
+  }, [isAuthenticated, isLoading, isLoadingUserLevel, userLevel, topicName, taskId, userId, router]);
 
   // Word pronunciation function
   const pronounceWord = useCallback((word: string) => {

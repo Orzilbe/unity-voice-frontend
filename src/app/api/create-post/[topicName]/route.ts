@@ -95,7 +95,7 @@ async function getUserLearnedWords(token: string, topicName: string): Promise<st
     console.log('Fetching learned words for user and topic:', topicName);
     
     // שליחת בקשה לקבלת המילים שהמשתמש למד
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/words/learned?topic=${encodeURIComponent(topicName)}`, {
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/words/learned?topic=${encodeURIComponent(topicName)}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
