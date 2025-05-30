@@ -3,7 +3,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authenticatedApiCall } from '../../config/api';
 
-
 interface Topic {
   TopicName: string;
   TopicHe: string;
@@ -22,7 +21,7 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
   
   // פונקציה ליצירת משימה ולניווט לדף התוכן
   const handleTopicClick = async (e: React.MouseEvent) => {
-    e.preventDefault(); // מניעת ניווט ברירת מחדל של ה-Link
+    e.preventDefault();
     
     // אם כבר מעבד, אל תעשה כלום
     if (isProcessing) return;
@@ -30,6 +29,11 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
     setIsProcessing(true);
     
     try {
+      // בדיקה שיש userId תקין
+      if (!userId || userId === "" || userId === "0") {
+        throw new Error('לא נמצא מזהה משתמש תקין - יש להתחבר מחדש');
+      }
+      
       // קבלת הטוקן
       const token = localStorage.getItem('token');
       if (!token) {
@@ -39,42 +43,71 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
       // עיצוב שם הנושא לשימוש ב-URL
       const topicUrlName = topic.TopicName.toLowerCase().replace(/\s+/g, '-');
       
-      // לוג הפרטים לפני השליחה - חשוב לדיבוג
-      console.log(`מנסה ליצור משימה: userId=${userId}, topicName=${topicUrlName}, token=${token.slice(0, 10)}...`);
+      // לוג הפרטים לפני השליחה
+      console.log(`Creating task for topic: ${topic.TopicName}, userId: ${userId}`);
       
-      // יצירת משימה חדשה
-      const taskData = await authenticatedApiCall('/tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          UserId: userId,
-          TopicName: topic.TopicName,
-          TaskType: 'topic_selection'
-        })
-      });
+      try {
+        // יצירת משימה חדשה - שימוש ב-endpoint הנכון
+        const taskData = await authenticatedApiCall('/create-task', {
+          method: 'POST',
+          body: JSON.stringify({
+            UserId: userId,
+            TopicName: topic.TopicName,
+            Level: 1, // התחלה מרמה 1
+            TaskType: 'flashcard' // סוג המשימה הראשונה
+          })
+        });
 
-      const taskId = taskData.TaskId;
-      console.log('משימה נוצרה בהצלחה עם מזהה:', taskId);
+        // בדיקה שהתשובה תקינה
+        if (!taskData || !taskData.TaskId) {
+          throw new Error('לא התקבל מזהה משימה מהשרת');
+        }
 
-      // ניווט לדף כרטיסיות עם מזהה המשימה
-      const path = `/topics/${topicUrlName}/tasks/flashcard?level=1&taskId=${taskId}`;
-      console.log(`ניווט אל: ${path}`);
-      router.push(path);
+        const taskId = taskData.TaskId;
+        console.log('Task created successfully with ID:', taskId);
+
+        // ניווט לדף כרטיסיות עם מזהה המשימה
+        const path = `/topics/${topicUrlName}/tasks/flashcard?level=1&taskId=${taskId}`;
+        console.log(`Navigating to: ${path}`);
+        router.push(path);
+        
+      } catch (apiError: any) {
+        console.error('API Error details:', apiError);
+        
+        // טיפול בשגיאות ספציפיות מה-API
+        if (apiError.status === 401) {
+          throw new Error('פג תוקף ההתחברות - יש להתחבר מחדש');
+        } else if (apiError.status === 403) {
+          throw new Error('אין הרשאה לבצע פעולה זו');
+        } else if (apiError.status === 400) {
+          throw new Error(apiError.message || 'נתונים לא תקינים');
+        } else if (apiError.responseData?.message) {
+          throw new Error(apiError.responseData.message);
+        } else {
+          throw new Error('אירעה שגיאה בתקשורת עם השרת');
+        }
+      }
+      
     } catch (error) {
-      console.error('שגיאה בבחירת נושא:', error);
+      console.error('Error in topic selection:', error);
       
       // בדיקה אם השגיאה היא שגיאת אימות
       if (error instanceof Error && (
           error.message.includes('401') || 
           error.message.includes('אימות') || 
-          error.message.includes('להתחבר')
+          error.message.includes('להתחבר') ||
+          error.message.includes('פג תוקף')
       )) {
         // ניווט לדף ההתחברות במקרה של שגיאת אימות
-        console.log('מזהה שגיאת אימות - מנווט לדף התחברות');
+        console.log('Authentication error detected - redirecting to login');
         router.push('/login');
+        return;
       }
       
+      // הצגת הודעת שגיאה למשתמש
       if (onError) {
-        onError(error instanceof Error ? error.message : 'אירעה שגיאה בהתחלת פעילות. אנא נסה שוב.');
+        const errorMessage = error instanceof Error ? error.message : 'אירעה שגיאה בהתחלת פעילות. אנא נסה שוב.';
+        onError(errorMessage);
       }
     } finally {
       setIsProcessing(false);
@@ -84,7 +117,7 @@ const TopicCard = ({ topic, userId, onError }: TopicCardProps) => {
   return (
     <div
       onClick={handleTopicClick}
-      className="group bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+      className={`group bg-white p-6 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer ${isProcessing ? 'opacity-75' : ''}`}
     >
       <div className="flex flex-col items-center space-y-4">
         {isProcessing ? (

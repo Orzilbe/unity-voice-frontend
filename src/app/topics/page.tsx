@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import UserProfile from '../components/UserProfile';
 import TopicCard from '../components/TopicCard';
 import { useAuth } from '../../hooks/useAuth';
-import { clearAuthToken } from '../lib/auth';
+import { clearAuthData } from '../../utils/auth-cookies';
 import Link from 'next/link';
-import api from '../../config/api';
+import { authenticatedApiCall } from '../../config/api';
 
 interface Topic {
   TopicName: string;
@@ -76,7 +76,8 @@ export default function Topics() {
       // Fetch topics
       const fetchTopics = async () => {
         try {
-          const data = await api.topics.getAll();
+          const data = await authenticatedApiCall('/topics');
+          console.log('Topics data:', data);
           setTopics(data);
         } catch (error) {
           console.error('Error fetching topics:', error);
@@ -98,7 +99,7 @@ export default function Topics() {
       // Fetch user data
       const fetchUserData = async () => {
         try {
-          const data = await api.user.getProfile();
+          const data = await authenticatedApiCall('/user-data');
           console.log('User data from API:', data);
           
           setUserData({
@@ -235,9 +236,6 @@ export default function Topics() {
                   console.error('No token found in localStorage');
                   return;
                 }
-                // Add token to headers for the next request
-                const headers = new Headers();
-                headers.append('Authorization', `Bearer ${token}`);
               }}
               className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center cursor-pointer"
             >
@@ -270,7 +268,7 @@ export default function Topics() {
             <TopicCard 
               key={topic.TopicName} 
               topic={topic} 
-              userId={String(user?.UserId || user?.userId || 0)}
+              userId={user?.UserId || user?.userId || user?.id || ""}
               onError={handleTopicError}
             />
           ))}
@@ -281,7 +279,7 @@ export default function Topics() {
       <div className="absolute top-4 left-4 flex space-x-3">
         <button 
           onClick={() => {
-            clearAuthToken();
+            clearAuthData();
             router.push('/login');
           }}
           className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center hover:shadow-xl transform hover:scale-105 transition-all duration-300"
