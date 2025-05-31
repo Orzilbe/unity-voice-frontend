@@ -1,4 +1,4 @@
-// apps/web/src/app/api/analyze-conversation/route.ts
+// frontend/src/app/api/analyze-conversation/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { AzureOpenAI } from 'openai';
 import jwt from 'jsonwebtoken';
