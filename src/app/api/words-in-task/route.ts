@@ -307,7 +307,7 @@ export async function GET(request: NextRequest) {
     }
     
     // בדיקה איזו טבלה קיימת
-    const tableNames = ['wordintask', 'WordsInTask', 'WordInTask'];
+    const tableNames = ['wordintask', 'wordintask', 'WordInTask'];
     let tableToUse = '';
     
     for (const tableName of tableNames) {

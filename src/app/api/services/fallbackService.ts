@@ -217,7 +217,7 @@ interface WordInTask {
 
 export async function addLocalWordsToTask(taskId: string, wordIds: string[]): Promise<boolean> {
   try {
-    const existingRelations = await readLocalData<WordInTask>('wordsInTask');
+    const existingRelations = await readLocalData<WordInTask>('wordintask');
     
     // Create new relations
     const newRelations = wordIds.map(wordId => ({
@@ -234,7 +234,7 @@ export async function addLocalWordsToTask(taskId: string, wordIds: string[]): Pr
       ...newRelations
     ];
     
-    return await writeLocalData<WordInTask>('wordsInTask', updatedRelations);
+    return await writeLocalData<WordInTask>('wordintask', updatedRelations);
   } catch (error) {
     console.error('Error adding words to task locally:', error);
     return false;
@@ -243,7 +243,7 @@ export async function addLocalWordsToTask(taskId: string, wordIds: string[]): Pr
 
 export async function getLocalWordsForTask(taskId: string): Promise<string[]> {
   try {
-    const relations = await readLocalData<WordInTask>('wordsInTask');
+    const relations = await readLocalData<WordInTask>('wordintask');
     return relations
       .filter(rel => rel.TaskId === taskId)
       .map(rel => rel.WordId);
