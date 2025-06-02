@@ -200,7 +200,7 @@ export const taskEndpoints = {
 // Flashcard endpoints
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => 
-    apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`),
+    apiCall(`/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=7`),
 };
 
 export default {
