@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaVolumeUp } from 'react-icons/fa';
+import { FaVolumeUp, FaTimes } from 'react-icons/fa';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthToken } from '../../../../../lib/auth';
@@ -130,20 +130,77 @@ export default function FlashcardTask() {
         // Create task if needed - Use the user's current level instead of URL level
         if (!taskId) {
           try {
-            const taskData = await taskEndpoints.create({
+            console.log('🎯 Creating flashcard task...');
+            // ✅ Add StartDate in MySQL format
+            const startDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const taskCreationData = {
               UserId: userId,
               TopicName: formattedTopicName,
               Level: userLevel,
-              TaskType: 'flashcard'
-            });
+              TaskType: 'flashcard',
+              StartDate: startDate // ✅ Add this!
+            };
+            console.log('📋 Task creation data:', taskCreationData);
+            const taskData = await taskEndpoints.create(taskCreationData);
+            console.log('✅ Task creation response:', taskData);
             
-            setTaskId(taskData.TaskId);
-            console.log('Task created successfully with ID:', taskData.TaskId);
-          } catch (err) {
-            console.error('Task creation error:', err);
-            // Use temporary task ID if API fails
-            const tempTaskId = `client_${uuidv4()}`;
-            setTaskId(tempTaskId);
+            // בדיקה אם יש TaskId בתגובה
+            if (taskData && taskData.TaskId) {
+              setTaskId(taskData.TaskId);
+              console.log('💾 Task ID set successfully:', taskData.TaskId);
+            } else {
+              console.error('❌ Task creation response missing TaskId:', taskData);
+              throw new Error('Invalid task creation response - missing TaskId');
+            }
+            
+          } catch (taskCreateError) {
+            console.error('💥 Task creation failed:', taskCreateError);
+            
+            // 🔍 פירוק מפורט של השגיאה
+            if (taskCreateError instanceof Error) {
+              console.error('🔍 Error details:');
+              console.error('   - Name:', taskCreateError.name);
+              console.error('   - Message:', taskCreateError.message);
+              if (taskCreateError.stack) {
+                console.error('   - Stack:', taskCreateError.stack.substring(0, 200) + '...');
+              }
+            }
+            
+            // בדיקת סוג השגיאה
+            if (taskCreateError && typeof taskCreateError === 'object') {
+              const errorObj = taskCreateError as any;
+              if ('status' in errorObj) {
+                console.error('🔍 HTTP Status:', errorObj.status);
+                
+                // הצגת הודעות ספציפיות לפי סטטוס
+                switch (errorObj.status) {
+                  case 401:
+                    console.error('❌ Authentication failed - check your login status');
+                    break;
+                  case 403:
+                    console.error('❌ Permission denied - check user permissions');
+                    break;
+                  case 404:
+                    console.error('❌ API endpoint not found - check API_URL');
+                    break;
+                  case 500:
+                    console.error('❌ Server error - check backend logs');
+                    break;
+                  default:
+                    console.error(`❌ HTTP ${errorObj.status} error`);
+                }
+              }
+              if ('response' in errorObj) {
+                console.error('🔍 Response details:', errorObj.response);
+              }
+            }
+            
+            // ❌ אל תיצור client_ taskId!
+            // במקום זה, פשוט המשך בלי taskId
+            console.log('⚠️ Continuing without task ID - flashcards will load but progress will not be saved');
+            
+            // אם אתה רוצה להודיע למשתמש על הבעיה (אופציונלי):
+            // setError('לא ניתן לשמור את התקדמותך כרגע. אתה יכול להמשיך ללמוד.');
           }
         }
         
@@ -244,61 +301,107 @@ export default function FlashcardTask() {
       window.speechSynthesis.speak(utterance);
     }
   }, [playbackSpeed]);
+  
+  const [isSavingWords, setIsSavingWords] = useState(false);
 
   // פונקציה לשמירת כל המילים למשימה בכפיפה אחת
   const saveAllWordsToTask = useCallback(async () => {
-    if (!taskId || taskId.startsWith('client_') || flashcards.length === 0) {
-      console.log('Skipping word-to-task saving: no valid taskId or no flashcards');
+    // 🔧 בדיקות מניעת שמירה
+    if (isSavingWords) {
+      console.log('⏳ Already saving words, skipping...');
       return;
     }
+    
+    if (!taskId) {
+      console.log('⚠️ No taskId available - cannot save words to backend');
+      console.log('   This is normal if task creation failed. User can still practice.');
+      return;
+    }
+    
+    if (taskId.startsWith('client_')) {
+      console.log('⚠️ Client-side taskId detected - this should not happen anymore');
+      return;
+    }
+    
+    if (flashcards.length === 0) {
+      console.log('📭 No flashcards to save');
+      return;
+    }
+    
+    setIsSavingWords(true);
     
     try {
       const token = getAuthToken();
       if (!token) {
-        console.error('No authentication token found');
+        console.error('❌ No authentication token found');
         return;
       }
       
-      console.log(`Saving ${flashcards.length} words to task ${taskId}`);
+      console.log(`💾 Saving ${flashcards.length} words to task ${taskId}`);
       
-      // יצירת מערך של WordToTaskMapping
-      const wordToTaskMappings: WordToTaskMapping[] = flashcards.map(card => ({
-        WordId: card.WordId,
-        TaskId: taskId
-      }));
+      const wordIds = flashcards.map(card => card.WordId);
       
-      // שליחת כל המיפויים בבקשה אחת
-      const response = await fetch('/api/word-to-task', {
+      console.log('📤 Sending data to API:', { 
+        taskId, 
+        wordIdsCount: wordIds.length,
+        sampleWordIds: wordIds.slice(0, 3) // רק כמה דוגמאות ללוג
+      });
+      
+      const response = await fetch('/api/words/to-task', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          mappings: wordToTaskMappings
+          taskId: taskId,
+          wordIds: wordIds
         })
       });
       
+      console.log('📡 API response status:', response.status);
+      
       if (response.ok) {
-        console.log('All words saved to task successfully');
+        const result = await response.json();
+        console.log('✅ Words saved successfully:', result);
       } else {
         const errorText = await response.text();
-        console.error('Failed to save words to task:', errorText);
+        console.error('❌ Failed to save words:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        
+        // ניסיון לנתח השגיאה
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('📋 Parsed error details:', errorJson);
+        } catch (e) {
+          console.error('⚠️ Could not parse error response as JSON');
+        }
       }
     } catch (error) {
-      console.error('Error saving words to task:', error);
-    }
-  }, [taskId, flashcards]);
-
-  // Auto-pronounce the current word when it changes
-  useEffect(() => {
-    if (flashcards.length > 0 && !showTranslation) {
-      const currentWord = flashcards[currentIndex]?.Word;
-      if (currentWord) {
-        pronounceWord(currentWord);
+      console.error('💥 Error saving words:', error);
+      
+      // זיהוי ספציפי של שגיאות רשת
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        console.error('🌐 Network error detected!');
+        console.error('🔍 Possible causes:');
+        console.error('   - Backend server is not running');
+        console.error('   - Wrong API_URL in environment variables');
+        console.error('   - Network connectivity issues');
+        console.error('');
+        console.error('🔧 Debug info:');
+        console.error('   - NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL || 'Not set');
+        console.error('   - Trying to reach: /api/words/to-task');
+      } else if (error instanceof Error) {
+        console.error('❌ Error name:', error.name);
+        console.error('❌ Error message:', error.message);
       }
+    } finally {
+      setIsSavingWords(false);
     }
-  }, [currentIndex, flashcards, showTranslation, pronounceWord]);
+  }, [taskId, flashcards, isSavingWords]);
 
   // Save words to task when flashcards are loaded
   useEffect(() => {
@@ -306,7 +409,41 @@ export default function FlashcardTask() {
       console.log('Saving words to task...');
       saveAllWordsToTask();
     }
-  }, [flashcards, taskId, saveAllWordsToTask]);
+  }, [flashcards, taskId]);
+
+  // 🔄 פונקציה מעודכנת לחישוב המילים הפעילות (שלא נסקרו)
+  const getActiveFlashcards = useCallback(() => {
+    return flashcards.filter(card => !reviewedWords.includes(card.WordId));
+  }, [flashcards, reviewedWords]);
+
+  // 🔄 פונקציה להתאמת האינדקס למילה הפעילה הבאה
+  const adjustCurrentIndex = useCallback(() => {
+    const activeCards = getActiveFlashcards();
+    if (activeCards.length === 0) {
+      return; // כל המילים נסקרו
+    }
+    
+    // אם המילה הנוכחית נסקרה, מעבר למילה הפעילה הבאה
+    const currentCard = flashcards[currentIndex];
+    if (currentCard && reviewedWords.includes(currentCard.WordId)) {
+      // מצא את המילה הפעילה הבאה
+      const nextActiveIndex = flashcards.findIndex((card, index) => 
+        index > currentIndex && !reviewedWords.includes(card.WordId)
+      );
+      
+      if (nextActiveIndex !== -1) {
+        setCurrentIndex(nextActiveIndex);
+      } else {
+        // אם אין מילה פעילה אחרי, מצא את הראשונה מהתחלה
+        const firstActiveIndex = flashcards.findIndex(card => 
+          !reviewedWords.includes(card.WordId)
+        );
+        if (firstActiveIndex !== -1) {
+          setCurrentIndex(firstActiveIndex);
+        }
+      }
+    }
+  }, [flashcards, currentIndex, reviewedWords, getActiveFlashcards]);
 
   // Check if all words have been reviewed
   useEffect(() => {
@@ -314,10 +451,14 @@ export default function FlashcardTask() {
       const allReviewed = flashcards.every(card => reviewedWords.includes(card.WordId));
       if (allReviewed && !allWordsReviewed) {
         setAllWordsReviewed(true);
-        setShowReviewedWordsModal(true);
       }
     }
   }, [reviewedWords, flashcards, allWordsReviewed]);
+
+  // התאמת האינדקס כאשר מילה מסומנת כנסקרה
+  useEffect(() => {
+    adjustCurrentIndex();
+  }, [reviewedWords, adjustCurrentIndex]);
 
   // Complete task function
   const completeFlashcardTask = async () => {
@@ -365,85 +506,257 @@ export default function FlashcardTask() {
     }
   };
 
-  // Start quiz function
+  // Start quiz with error handling - תיקון עם UserId נכון
   const startQuiz = async () => {
     try {
-      console.log('Starting quiz for topic:', topicName, 'level:', userLevel);
+      console.group('Starting Quiz Flow');
       
-      // First complete the flashcard task
-      const taskCompleted = await completeFlashcardTask();
-      
-      if (!taskCompleted) {
-        console.warn('Failed to complete flashcard task, but continuing to quiz');
-      }
-      
-      // Create a new task for the quiz
-      const token = getAuthToken();
-      if (!token) {
-        console.error('No authentication token found');
-        router.push(`/topics/${topicName}/tasks/quiz?level=${userLevel}`);
+      // Check if all words are reviewed
+      if (reviewedWords.length < flashcards.length) {
+        console.warn('Not all words reviewed');
+        alert('נא לעבור על כל המילים לפני המעבר למבחן');
+        console.groupEnd();
         return;
       }
       
+      // Calculate task duration
+      const durationSeconds = Math.floor((Date.now() - pageLoadTimeMs) / 1000);
+      console.log(`Task duration: ${durationSeconds} seconds (${Math.floor(durationSeconds / 60)} minutes)`);
+      
+      // Get auth token
+      const token = getAuthToken();
+      if (!token) {
+        console.error('No authentication token available');
+        throw new Error('Authentication required');
+      }
+      
+      // 🔧 Extract userId from user context or token
+      let userId = user?.UserId || user?.userId || user?.id || '';
+      
+      // If no userId from user context, try to extract from token
+      if (!userId) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            userId = payload.id || payload.userId || payload.sub || '';
+            console.log('📋 Extracted userId from token:', userId);
+          }
+        } catch (err) {
+          console.error('Error extracting userId from token:', err);
+        }
+      }
+      
+      if (!userId) {
+        console.error('❌ No userId found in user context or token');
+        throw new Error('User ID not found');
+      }
+      
+      console.log('✅ Using userId for quiz task:', userId);
+      
+      // 1. Complete flashcard task if it exists and isn't a client-side temporary ID
+      if (taskId && !taskId.startsWith('client_')) {
+        try {
+          // Update task completion status
+          const completeResponse = await fetch('/api/tasks', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              taskId: taskId,
+              TaskScore: 100,
+              DurationTask: durationSeconds,
+              CompletionDate: new Date().toISOString()
+            })
+          });
+          
+          console.log(`Task completion API response status: ${completeResponse.status}`);
+          
+          if (!completeResponse.ok) {
+            console.error('API error when completing flashcard task:', await completeResponse.text());
+            // Continue anyway
+          } else {
+            console.log('Successfully completed flashcard task');
+          }
+        } catch (apiError) {
+          console.error('Error calling task completion API:', apiError);
+          // Continue anyway
+        }
+      } else {
+        console.log('Using temporary task ID, skipping flashcard task completion');
+      }
+      
+      // 2. Create a new quiz task with properly formatted topic name AND UserId
+      let quizTaskId = null;
       try {
+        // Format topic name consistently for DB (with spaces)
         const formattedTopicName = formatTopicNameForDb(topicName);
+        console.log(`📝 Creating quiz task for topic: "${formattedTopicName}"`);
+        // ✅ Use MySQL format for StartDate
+        const startDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const requestBody = {
+          UserId: userId,
+          TopicName: formattedTopicName,
+          Level: userLevel,
+          TaskType: 'quiz',
+          StartDate: startDate // ✅ MySQL format instead of ISO
+        };
+        console.log('📤 Quiz task creation request:', requestBody);
         
-        const taskResponse = await fetch('/api/tasks', {
+        const createTaskResponse = await fetch('/api/tasks', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            TopicName: formattedTopicName,
-            Level: userLevel,
-            TaskType: 'quiz',
-            StartDate: new Date().toISOString()
-          })
+          body: JSON.stringify(requestBody)
         });
         
-        if (taskResponse.ok) {
-          const taskData = await taskResponse.json();
-          const quizTaskId = taskData.TaskId;
-          console.log('Quiz task created successfully with ID:', quizTaskId);
+        console.log('📡 Quiz task response status:', createTaskResponse.status);
+        
+        if (createTaskResponse.ok) {
+          const taskData = await createTaskResponse.json();
           
-          // Navigate to quiz with the new task ID
-          router.push(`/topics/${topicName}/tasks/quiz?level=${userLevel}&taskId=${quizTaskId}`);
+          if (taskData && taskData.TaskId) {
+            quizTaskId = taskData.TaskId;
+            console.log('✅ Quiz task created successfully:', quizTaskId);
+            
+            // 3. Add words to the new quiz task (only if we have a real task ID)
+            if (reviewedWords.length > 0) {
+              try {
+                console.log(`📝 Adding ${reviewedWords.length} words to quiz task...`);
+                
+                const addWordsResponse = await fetch('/api/words/to-task', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    taskId: quizTaskId,
+                    wordIds: reviewedWords
+                  })
+                });
+                
+                console.log(`Add words to quiz task API response status: ${addWordsResponse.status}`);
+                
+                if (addWordsResponse.ok) {
+                  console.log(`Successfully added ${reviewedWords.length} words to quiz task`);
+                } else {
+                  const errorText = await addWordsResponse.text();
+                  console.warn('Failed to add words to quiz task:', errorText);
+                }
+              } catch (wordsError) {
+                console.error('Error adding words to quiz task:', wordsError);
+              }
+            }
+          } else {
+            console.error('❌ Quiz task creation response missing TaskId:', taskData);
+          }
         } else {
-          console.error('Failed to create quiz task, navigating without task ID');
-          router.push(`/topics/${topicName}/tasks/quiz?level=${userLevel}`);
+          const errorText = await createTaskResponse.text();
+          console.error('❌ Failed to create quiz task:', {
+            status: createTaskResponse.status,
+            error: errorText
+          });
+          // אל תיצור client_ ID - פשוט המשך בלי task ID
+          console.log('⚠️ Proceeding to quiz without task ID');
         }
       } catch (error) {
-        console.error('Error creating quiz task:', error);
-        router.push(`/topics/${topicName}/tasks/quiz?level=${userLevel}`);
+        console.error('💥 Quiz task creation error:', error);
+        console.log('⚠️ Proceeding to quiz without task ID');
       }
+      
+      // Navigate to quiz - עם או בלי task ID
+      const urlTopicName = topicName;
+      const quizParams = new URLSearchParams({
+        level: userLevel.toString()
+      });
+      
+      // רק אם יש task ID אמיתי
+      if (quizTaskId && !quizTaskId.startsWith('client_')) {
+        quizParams.append('taskId', quizTaskId);
+        console.log('✅ Adding real taskId to URL:', quizTaskId);
+      } else {
+        console.log('⚠️ No valid taskId - quiz will work without progress tracking');
+      }
+      
+      const quizUrl = `/topics/${urlTopicName}/tasks/quiz?${quizParams.toString()}`;
+      console.log(`🎯 Navigating to: ${quizUrl}`);
+      
+      router.push(quizUrl);
+      
     } catch (error) {
-      console.error('Error in startQuiz:', error);
-      router.push(`/topics/${topicName}/tasks/quiz?level=${userLevel}`);
+      console.error('💥 Error starting quiz:', error);
+      setError('אירעה שגיאה במעבר למבחן. אנא נסו שנית.');
+    } finally {
+      console.groupEnd();
     }
   };
 
-  // Navigation functions
+  // 🔄 פונקציות ניווט מעודכנות - רק למילים פעילות
   const handleNext = () => {
-    if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    const activeCards = getActiveFlashcards();
+    if (activeCards.length === 0) return;
+    
+    const currentActiveIndex = activeCards.findIndex(card => 
+      card.WordId === flashcards[currentIndex]?.WordId
+    );
+    
+    if (currentActiveIndex < activeCards.length - 1) {
+      // מצא את המילה הפעילה הבאה ברשימה המקורית
+      const nextActiveCard = activeCards[currentActiveIndex + 1];
+      const nextIndex = flashcards.findIndex(card => card.WordId === nextActiveCard.WordId);
+      setCurrentIndex(nextIndex);
       setShowTranslation(false);
     }
   };
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+    const activeCards = getActiveFlashcards();
+    if (activeCards.length === 0) return;
+    
+    const currentActiveIndex = activeCards.findIndex(card => 
+      card.WordId === flashcards[currentIndex]?.WordId
+    );
+    
+    if (currentActiveIndex > 0) {
+      // מצא את המילה הפעילה הקודמת ברשימה המקורית
+      const prevActiveCard = activeCards[currentActiveIndex - 1];
+      const prevIndex = flashcards.findIndex(card => card.WordId === prevActiveCard.WordId);
+      setCurrentIndex(prevIndex);
       setShowTranslation(false);
     }
   };
 
-  // Mark word as reviewed
+  // 🔄 Mark word as reviewed - מעבר אוטומטי למילה הבאה
   const markWordAsReviewed = () => {
     const currentWordId = flashcards[currentIndex]?.WordId;
     if (currentWordId && !reviewedWords.includes(currentWordId)) {
       setReviewedWords(prev => [...prev, currentWordId]);
+      
+      // ✅ מעבר אוטומטי למילה הפעילה הבאה
+      const activeCards = getActiveFlashcards().filter(card => card.WordId !== currentWordId);
+      if (activeCards.length > 0) {
+        // מצא את המילה הפעילה הבאה
+        const nextActiveCard = activeCards.find(card => {
+          const cardIndex = flashcards.findIndex(c => c.WordId === card.WordId);
+          return cardIndex > currentIndex;
+        }) || activeCards[0]; // אם אין מילה אחרי, קח את הראשונה
+        
+        const nextIndex = flashcards.findIndex(card => card.WordId === nextActiveCard.WordId);
+        setCurrentIndex(nextIndex);
+        setShowTranslation(false);
+      }
     }
+  };
+
+  // 🔄 פונקציה להסרת מילה מהמילים שנסקרו
+  const removeWordFromReviewed = (wordId: string) => {
+    setReviewedWords(prev => prev.filter(id => id !== wordId));
+    setAllWordsReviewed(false); // איפוס הסטטוס אם הוסרה מילה
   };
 
   // Format topic name for display
@@ -456,9 +769,16 @@ export default function FlashcardTask() {
 
   const pageTitle = `${formatTopicName(topicName)} - level ${userLevel}`;
 
+  // 🔄 חישוב מילים פעילות ואינדקס נוכחי
+  const activeFlashcards = getActiveFlashcards();
+  const currentActiveIndex = activeFlashcards.findIndex(card => 
+    card.WordId === flashcards[currentIndex]?.WordId
+  );
+
   // Debug rendering
   console.log('Rendering FlashcardTask. allWordsReviewed:', allWordsReviewed);
   console.log(`Reviewed ${reviewedWords.length}/${flashcards.length} words`);
+  console.log(`Active cards: ${activeFlashcards.length}, Current active index: ${currentActiveIndex}`);
 
   // Loading state
   if (isLoading || isLoadingCards || isLoadingUserLevel) {
@@ -488,7 +808,7 @@ export default function FlashcardTask() {
               נסה שוב
             </button>
             <Link 
-              href="#" 
+              href="/topics" 
               className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-300"
             >
               חזרה לנושאים
@@ -508,11 +828,36 @@ export default function FlashcardTask() {
           <h2 className="text-2xl font-bold text-gray-800 mb-4">אין מילים זמינות</h2>
           <p className="text-gray-600 mb-6">אין מילים זמינות לנושא זה ברמה הנוכחית.</p>
           <Link 
-            href="#" 
+            href="/topics" 
             className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 inline-block"
           >
             חזרה לנושאים
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ אם כל המילים נסקרו - הצג מסך סיום
+  if (allWordsReviewed || activeFlashcards.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 flex justify-center items-center">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
+          <div className="text-green-500 text-6xl mb-6">🎉</div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">כל הכבוד!</h2>
+          <p className="text-gray-600 mb-6">סיימת לסקור את כל המילים בנושא זה.</p>
+          <p className="text-lg font-semibold text-gray-700 mb-8">
+            סקרת {reviewedWords.length} מתוך {flashcards.length} מילים
+          </p>
+          
+          <div className="flex justify-center">
+            <button
+              onClick={startQuiz}
+              className="px-8 py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 transform hover:-translate-y-1 shadow-md hover:shadow-lg text-lg"
+            >
+              התחל בוחן! 🎯
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -535,7 +880,7 @@ export default function FlashcardTask() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="flex justify-between items-center mb-4">
             <span className="text-sm font-medium text-gray-500">
-              כרטיסיה {currentIndex + 1} מתוך {flashcards.length}
+              כרטיסיה {currentActiveIndex + 1} מתוך {activeFlashcards.length}
             </span>
             <span className="text-sm font-medium text-gray-500">
               נסקרו: {reviewedWords.length} מתוך {flashcards.length}
@@ -562,7 +907,7 @@ export default function FlashcardTask() {
             <button
               onClick={handlePrevious}
               className="px-8 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:hover:transform-none"
-              disabled={currentIndex === 0}
+              disabled={currentActiveIndex === 0}
             >
               הקודם
             </button>
@@ -586,7 +931,7 @@ export default function FlashcardTask() {
             <button
               onClick={handleNext}
               className="px-8 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-50 disabled:hover:transform-none"
-              disabled={currentIndex === flashcards.length - 1}
+              disabled={currentActiveIndex === activeFlashcards.length - 1}
             >
               הבא
             </button>
@@ -607,18 +952,6 @@ export default function FlashcardTask() {
               צפה במילים שנסקרו 📚
             </button>
           </div>
-
-          {/* Quiz start button */}
-          {(allWordsReviewed || reviewedWords.length >= flashcards.length) && (
-            <div className="flex justify-center mt-8">
-              <button
-                onClick={startQuiz}
-                className="px-8 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 transform hover:-translate-y-1 shadow-md hover:shadow-lg text-lg"
-              >
-                סיימתי ללמוד - התחל מבחן! 🎯
-              </button>
-            </div>
-          )}
         </div>
       </main>
 
@@ -633,10 +966,18 @@ export default function FlashcardTask() {
                   const word = flashcards.find((card) => card.WordId === wordId);
                   return word && (
                     <li key={wordId} className="flex justify-between items-center p-3 bg-orange-50 rounded-xl">
-                      <div className="flex flex-col">
+                      <div className="flex flex-col flex-1">
                         <span className="font-semibold text-gray-700">{word.Word}</span>
                         <span className="text-sm text-gray-500">{word.Translation}</span>
                       </div>
+                      {/* ✅ כפתור הסרה */}
+                      <button
+                        onClick={() => removeWordFromReviewed(wordId)}
+                        className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 hover:bg-red-200 transition-colors ml-2"
+                        title="הסר מהמילים שנסקרו"
+                      >
+                        <FaTimes className="text-sm" />
+                      </button>
                     </li>
                   );
                 })}
@@ -644,18 +985,31 @@ export default function FlashcardTask() {
             ) : (
               <p className="text-gray-500 text-center py-4">אין עדיין מילים שנסקרו.</p>
             )}
-            <button
-              onClick={() => setShowReviewedWordsModal(false)}
-              className="mt-6 w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 transform hover:-translate-y-1"
-            >
-              סגור
-            </button>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowReviewedWordsModal(false)}
+                className="flex-1 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 transform hover:-translate-y-1"
+              >
+                סגור
+              </button>
+              
+              {/* ✅ כפתור התחלת בוחן אם כל המילים נסקרו */}
+              {reviewedWords.length === flashcards.length && (
+                <button
+                  onClick={() => {
+                    setShowReviewedWordsModal(false);
+                    startQuiz();
+                  }}
+                  className="flex-1 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 transform hover:-translate-y-1"
+                >
+                  התחל בוחן! 🎯
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
-
-      {/* Navigation */}
-      
     </div>
   );
 }

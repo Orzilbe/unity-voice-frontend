@@ -64,98 +64,102 @@ export default function QuizTask() {
 
   const pageTitle = `${formatTopicName(topicName)} Quiz - Level ${level}`;
 
-  // Generate mock quiz questions based on a task ID
+  // Generate quiz questions
   useEffect(() => {
     const generateQuizQuestions = async () => {
       try {
         setIsLoading(true);
         setError(null);
         
-        console.group('Generating Quiz Questions');
-        console.log('Original topicName from URL:', topicName);
-        
-        // Ensure consistent topic name formats
-        const urlTopicName = topicName; // Keep the original for URL navigation
-        const dbTopicName = formatTopicNameForDb(topicName);
-        
-        console.log('Formatted topic names - URL:', urlTopicName, 'DB:', dbTopicName);
+        console.group('🎯 Generating Quiz Questions');
+        console.log('📋 Quiz parameters:');
+        console.log('  - topicName:', topicName);
+        console.log('  - level:', level);
+        console.log('  - taskId:', taskId);
         
         const token = getAuthToken();
         if (!token) {
           throw new Error('Authentication token missing');
         }
         
-        // First try to get words from the task if we have a taskId
         let taskWords: WordData[] = [];
+        
+        // 🔧 תיקון: נתיב מתוקן לAPI
         if (taskId) {
           try {
-            console.log(`Attempting to fetch words associated with flashcard task ${taskId}`);
-            const taskWordsResponse = await fetch(`/api/words-in-task?taskId=${encodeURIComponent(taskId)}`, {
+            console.log(`🔍 Fetching words from task: ${taskId}`);
+            const taskWordsResponse = await fetch(`/api/words/in-task?taskId=${encodeURIComponent(taskId)}`, {
               headers: {
                 'Authorization': `Bearer ${token}`
               }
             });
+            
+            console.log('📡 Task words response status:', taskWordsResponse.status);
             
             if (taskWordsResponse.ok) {
               const taskWordsData = await taskWordsResponse.json();
+              console.log('📊 Task words data:', taskWordsData);
+              
               if (taskWordsData.success && Array.isArray(taskWordsData.data)) {
                 taskWords = taskWordsData.data;
-                console.log(`Retrieved ${taskWords.length} words from task ${taskId}`);
+                console.log(`✅ Retrieved ${taskWords.length} words from task ${taskId}`);
               } else {
-                console.warn('Task words endpoint returned success, but no data array');
+                console.warn('⚠️ Task words endpoint returned success, but no data array');
               }
             } else {
-              console.warn(`Could not fetch task words: ${taskWordsResponse.status}`);
+              const errorText = await taskWordsResponse.text();
+              console.warn(`⚠️ Could not fetch task words: ${taskWordsResponse.status}`, errorText);
             }
           } catch (taskWordsError) {
-            console.error('Error fetching task words:', taskWordsError);
+            console.error('❌ Error fetching task words:', taskWordsError);
           }
+        } else {
+          console.log('⚠️ No taskId provided, will try to fetch from topic');
         }
         
-        // If we couldn't get words from the task, try both formats of topic name
+        // אם אין מילים מהמשימה, נסה לטעון מהנושא
         if (taskWords.length === 0) {
-          console.log('No task words found, fetching from topic instead');
+          console.log('🔄 No task words found, fetching from topic instead');
           
-          // Try with DB format (spaces and capital letters)
-          const dbFormatResponse = await fetch(`/api/words?topic=${encodeURIComponent(dbTopicName)}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
+          const dbTopicName = formatTopicNameForDb(topicName);
+          console.log(`🔍 Formatted topic name: "${dbTopicName}"`);
           
-          if (dbFormatResponse.ok) {
-            const dbWords = await dbFormatResponse.json();
-            if (Array.isArray(dbWords) && dbWords.length > 0) {
-              console.log(`Retrieved ${dbWords.length} words using DB format topic name`);
-              taskWords = dbWords;
-            }
-          }
-          
-          // If still no words, try URL format (hyphens and lowercase)
-          if (taskWords.length === 0) {
-            console.log('No words found with DB format, trying URL format');
-            const urlFormatResponse = await fetch(`/api/words?topic=${encodeURIComponent(urlTopicName)}`, {
+          try {
+            // 🔧 תיקון: השתמש ב-/api/words רגיל, לא /in-task
+            const topicWordsResponse = await fetch(`/api/words?topic=${encodeURIComponent(dbTopicName)}&level=${level}`, {
               headers: {
                 'Authorization': `Bearer ${token}`
               }
             });
             
-            if (urlFormatResponse.ok) {
-              const urlWords = await urlFormatResponse.json();
-              if (Array.isArray(urlWords) && urlWords.length > 0) {
-                console.log(`Retrieved ${urlWords.length} words using URL format topic name`);
-                taskWords = urlWords;
+            console.log('📡 Topic words response status:', topicWordsResponse.status);
+            
+            if (topicWordsResponse.ok) {
+              const topicWords = await topicWordsResponse.json();
+              console.log('📊 Topic words data:', topicWords);
+              
+              if (Array.isArray(topicWords) && topicWords.length > 0) {
+                console.log(`✅ Retrieved ${topicWords.length} words from topic`);
+                taskWords = topicWords;
+              } else {
+                console.warn('⚠️ No words found for topic');
               }
+            } else {
+              const errorText = await topicWordsResponse.text();
+              console.error('❌ Failed to fetch topic words:', errorText);
             }
+          } catch (topicWordsError) {
+            console.error('❌ Error fetching topic words:', topicWordsError);
           }
         }
         
-        // If we still have no words, throw an error
+        // אם עדיין אין מילים
         if (taskWords.length === 0) {
-          throw new Error('No words found for this topic. Please complete flashcard learning first.');
+          console.error('❌ No words found from any source');
+          throw new Error('אין מילים זמינות לבוחן זה. אנא השלם קודם את לימוד הכרטיסיות.');
         }
         
-        // Validate word structure to ensure they have the required fields
+        // בדיקת תקינות המילים
         const validWords = taskWords.filter((word: WordData) => 
           word && 
           word.Word && 
@@ -164,28 +168,28 @@ export default function QuizTask() {
         );
         
         if (validWords.length === 0) {
-          throw new Error('No valid words found with required fields.');
+          throw new Error('לא נמצאו מילים תקינות עם כל השדות הנדרשים.');
         }
         
-        console.log(`${validWords.length} valid words available for quiz`);
+        console.log(`✅ ${validWords.length} valid words available for quiz`);
         
-        // Normalize word structure (some might have different casing for fields)
+        // נרמול מבנה המילים
         const normalizedWords = validWords.map((word: WordData) => ({
           id: word.WordId || word.wordId || '',
           word: word.Word,
           correctAnswer: word.Translation,
-          topicName: word.TopicName || word.topicName || dbTopicName
+          topicName: word.TopicName || word.topicName || formatTopicNameForDb(topicName)
         }));
         
-        // Transform words into quiz questions
+        // יצירת שאלות הבוחן
         const questions = normalizedWords.map((word: { id: string; word: string; correctAnswer: string; topicName: string }) => {
-          // Generate 3 random incorrect options
+          // יצירת 3 תשובות שגויות
           const incorrectOptions = generateIncorrectOptions(word.correctAnswer, normalizedWords);
           
-          // Combine correct answer with incorrect options and shuffle
+          // שילוב התשובה הנכונה עם השגויות וערבוב
           const options = [word.correctAnswer, ...incorrectOptions].sort(() => Math.random() - 0.5);
           
-          console.log(`Generated options for word "${word.word}":`, options);
+          console.log(`📝 Generated options for word "${word.word}":`, options);
           
           return {
             id: word.id,
@@ -195,26 +199,21 @@ export default function QuizTask() {
           };
         });
         
-        // Shuffle questions
+        // ערבוב השאלות
         const shuffledQuestions = questions.sort(() => Math.random() - 0.5);
         
-        // Use all available questions instead of limiting to 5
-        const quizQuestions = shuffledQuestions;
-        console.log(`Generated ${quizQuestions.length} quiz questions`);
-        
-        // Debug log the final questions with their options
-        console.log("Final quiz questions:", quizQuestions.map((q: QuizQuestion) => ({
+        console.log(`🎲 Generated ${shuffledQuestions.length} quiz questions`);
+        console.log('📋 Final quiz questions:', shuffledQuestions.map((q: QuizQuestion) => ({
           word: q.word,
           correctAnswer: q.correctAnswer,
-          optionsCount: q.options.length,
-          options: q.options
+          optionsCount: q.options.length
         })));
         
-        setQuizQuestions(quizQuestions);
+        setQuizQuestions(shuffledQuestions);
         console.groupEnd();
       } catch (error) {
-        console.error('Error generating quiz questions:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load quiz questions');
+        console.error('💥 Error generating quiz questions:', error);
+        setError(error instanceof Error ? error.message : 'נכשל בטעינת שאלות הבוחן');
       } finally {
         setIsLoading(false);
       }
@@ -238,18 +237,18 @@ export default function QuizTask() {
 
   // Function to generate incorrect options for a word
   const generateIncorrectOptions = (correctAnswer: string, allWords: { id: string; word: string; correctAnswer: string; topicName: string }[]) => {
-    // Get all translations from other words
+    // קבלת כל התרגומים ממילים אחרות
     const allTranslations = allWords
       .map(w => w.correctAnswer)
       .filter(translation => translation !== correctAnswer);
     
-    // If we have fewer than 3 options, add some generic ones
+    // אם יש פחות מ-3 אפשרויות, הוסף כמה כלליות
     if (allTranslations.length < 3) {
-      const genericOptions = ['תרגום', 'מילה', 'ביטוי', 'מושג', 'רעיון'];
+      const genericOptions = ['תרגום', 'מילה', 'ביטוי', 'מושג', 'רעיון', 'דבר', 'פעולה'];
       allTranslations.push(...genericOptions);
     }
     
-    // Shuffle and take 3
+    // ערבוב וקח 3
     const shuffled = allTranslations.sort(() => Math.random() - 0.5);
     return shuffled.slice(0, 3);
   };
@@ -304,60 +303,61 @@ export default function QuizTask() {
       }]);
     }
     
-    // הזה את התשובה שנבחרה ועבור לשאלה הבאה
+    // איפוס התשובה שנבחרה ומעבר לשאלה הבאה
     setSelectedAnswer('');
     
     if (currentQuestion < quizQuestions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
     } else {
-      // סיים את הקוויז
+      // סיום הבוחן
       setIsTimerActive(false);
       setShowResultModal(true);
       completeQuizTask();
     }
   };
 
-// Complete the quiz task and record results
-const completeQuizTask = async () => {
-  if (!taskId) {
-    console.log('No taskId provided, cannot update task status');
-    return;
-  }
-  
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      console.error('No authentication token found');
+  // Complete the quiz task and record results
+  const completeQuizTask = async () => {
+    if (!taskId) {
+      console.log('⚠️ No taskId provided, cannot update task status');
       return;
     }
     
-    const payload = {
-      TaskScore: score,
-      DurationTask: timer,
-      CompletionDate: new Date().toISOString()
-    };
-    
-    console.log('Updating quiz task with payload:', payload);
-    
-    const response = await fetch(`/api/tasks/${taskId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (response.ok) {
-      console.log('Quiz task updated successfully');
-    } else {
-      const errorData = await response.json();
-      console.error('Failed to update quiz task:', errorData);
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        console.error('❌ No authentication token found');
+        return;
+      }
+      
+      const payload = {
+        taskId: taskId,
+        TaskScore: score,
+        DurationTask: timer,
+        CompletionDate: new Date().toISOString()
+      };
+      
+      console.log('📊 Updating quiz task with payload:', payload);
+      
+      const response = await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        console.log('✅ Quiz task updated successfully');
+      } else {
+        const errorData = await response.text();
+        console.error('❌ Failed to update quiz task:', errorData);
+      }
+    } catch (error) {
+      console.error('💥 Error updating quiz task:', error);
     }
-  } catch (error) {
-    console.error('Error updating quiz task:', error);
-  }
-};
+  };
 
   const restartQuiz = () => {
     setCurrentQuestion(0);
@@ -387,7 +387,7 @@ const completeQuizTask = async () => {
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 flex justify-center items-center">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
           <div className="inline-block w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-xl font-medium text-gray-700">Loading Quiz...</p>
+          <p className="text-xl font-medium text-gray-700">טוען בוחן...</p>
         </div>
       </div>
     );
@@ -395,23 +395,23 @@ const completeQuizTask = async () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 flex justify-center items-center">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
           <div className="text-red-500 text-5xl mb-4">❌</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">{error}</h2>
-          <p className="text-gray-600 mb-6">Please complete the flashcard exercise first to learn some words.</p>
+          <p className="text-gray-600 mb-6">אנא השלם את תרגיל הכרטיסיות קודם כדי ללמוד מילים.</p>
           <div className="flex flex-col gap-4">
             <Link 
               href={`/topics/${topicName}/tasks/flashcard?level=${level}`}
               className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300"
             >
-              Go to Flashcards
+              עבור לכרטיסיות
             </Link>
             <Link 
-              href="#" 
+              href="/topics" 
               className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-300"
             >
-              Back to Topics
+              חזרה לנושאים
             </Link>
           </div>
         </div>
@@ -421,23 +421,23 @@ const completeQuizTask = async () => {
   
   if (quizQuestions.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 flex justify-center items-center">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
           <div className="text-orange-500 text-5xl mb-4">📚</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">No Quiz Questions Available</h2>
-          <p className="text-gray-600 mb-6">Please complete the flashcard exercise first to learn some words.</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">אין שאלות זמינות לבוחן</h2>
+          <p className="text-gray-600 mb-6">אנא השלם את תרגיל הכרטיסיות קודם כדי ללמוד מילים.</p>
           <div className="flex flex-col gap-4">
             <Link 
               href={`/topics/${topicName}/tasks/flashcard?level=${level}`}
               className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300"
             >
-              Go to Flashcards
+              עבור לכרטיסיות
             </Link>
             <Link 
-              href="#" 
+              href="/topics" 
               className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all duration-300"
             >
-              Back to Topics
+              חזרה לנושאים
             </Link>
           </div>
         </div>
@@ -456,8 +456,6 @@ const completeQuizTask = async () => {
       `}</style>
 
       <h1 className="text-3xl font-bold text-center text-gray-800 mb-6 mt-2">{pageTitle}</h1>
-
-      {/* Profile Icon - Removed */}
 
       {/* Stats Header */}
       <div className="max-w-4xl mx-auto bg-white rounded-2xl p-6 shadow-lg mb-6">
@@ -598,9 +596,8 @@ const completeQuizTask = async () => {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 mt-8">
               <button
-                id="try-again-btn"
                 onClick={restartQuiz}
                 className="w-full py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 transform hover:-translate-y-1 shadow-md hover:shadow-xl"
               >
@@ -622,7 +619,7 @@ const completeQuizTask = async () => {
               
               {/* Passing score message below Next Challenge button */}
               {(correctAnswers.length / quizQuestions.length) < 0.6 && (
-                <p className="text-red-600 text-sm mt-2">
+                <p className="text-red-600 text-sm text-center mt-2">
                   נדרש לפחות 60% תשובות נכונות כדי להמשיך לאתגר הבא
                 </p>
               )}
@@ -630,9 +627,6 @@ const completeQuizTask = async () => {
           </div>
         </div>
       )}
-
-
-
     </div>
   );
 }
