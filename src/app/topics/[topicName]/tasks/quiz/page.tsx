@@ -54,6 +54,14 @@ export default function QuizTask() {
     }
   }, [isAuthenticated, authLoading, router]);
 
+  // Add validation for required taskId
+  useEffect(() => {
+    if (!authLoading && !taskId) {
+      console.error('No taskId provided in URL');
+      router.push(`/topics/${topicName}/tasks/flashcard?level=${level}`);
+    }
+  }, [authLoading, taskId, topicName, level, router]);
+
   // Format the topic name for display
   const formatTopicName = (name: string) => {
     return name
@@ -303,21 +311,25 @@ export default function QuizTask() {
       }]);
     }
     
-    // איפוס התשובה שנבחרה ומעבר לשאלה הבאה
     setSelectedAnswer('');
     
     if (currentQuestion < quizQuestions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
     } else {
-      // סיום הבוחן
       setIsTimerActive(false);
       setShowResultModal(true);
-      completeQuizTask();
+      
+      // Calculate final score including the last question
+      const finalScore = isCorrect ? score + calculateQuestionScore(timer, streak) : score;
+      setScore(finalScore);
+      
+      // Use the final score for task completion
+      completeQuizTask(finalScore);
     }
   };
 
   // Complete the quiz task and record results
-  const completeQuizTask = async () => {
+  const completeQuizTask = async (finalScore: number) => {
     if (!taskId) {
       console.log('⚠️ No taskId provided, cannot update task status');
       return;
@@ -332,7 +344,7 @@ export default function QuizTask() {
       
       const payload = {
         taskId: taskId,
-        TaskScore: score,
+        TaskScore: finalScore,
         DurationTask: timer,
         CompletionDate: new Date().toISOString()
       };
@@ -388,6 +400,24 @@ export default function QuizTask() {
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center">
           <div className="inline-block w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-xl font-medium text-gray-700">טוען בוחן...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!taskId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 flex justify-center items-center">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
+          <div className="text-red-500 text-5xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">שגיאה בטעינת המבחן</h2>
+          <p className="text-gray-600 mb-6">לא נמצא מזהה מבחן. אנא התחילו את המבחן מחדש דרך כרטיסיות הלימוד.</p>
+          <Link 
+            href={`/topics/${topicName}/tasks/flashcard?level=${level}`}
+            className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 inline-block"
+          >
+            חזרה לכרטיסיות
+          </Link>
         </div>
       </div>
     );

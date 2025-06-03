@@ -34,7 +34,7 @@ interface WordToTaskMapping {
 }
 
 export default function FlashcardTask() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -54,6 +54,7 @@ export default function FlashcardTask() {
   const [playbackSpeed, setPlaybackSpeed] = useState<'normal' | 'slow'>('normal');
   const [showReviewedWordsModal, setShowReviewedWordsModal] = useState(false);
   const [allWordsReviewed, setAllWordsReviewed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Get user ID from auth context
   const userId = user?.UserId || user?.userId || user?.id || '';
@@ -508,189 +509,77 @@ export default function FlashcardTask() {
 
   // Start quiz with error handling - תיקון עם UserId נכון
   const startQuiz = async () => {
+    console.group('🎯 Starting Quiz');
+    setError(null);
+    setIsLoading(true);
+
     try {
-      console.group('Starting Quiz Flow');
-      
-      // Check if all words are reviewed
-      if (reviewedWords.length < flashcards.length) {
-        console.warn('Not all words reviewed');
-        alert('נא לעבור על כל המילים לפני המעבר למבחן');
-        console.groupEnd();
-        return;
-      }
-      
-      // Calculate task duration
-      const durationSeconds = Math.floor((Date.now() - pageLoadTimeMs) / 1000);
-      console.log(`Task duration: ${durationSeconds} seconds (${Math.floor(durationSeconds / 60)} minutes)`);
-      
-      // Get auth token
       const token = getAuthToken();
       if (!token) {
-        console.error('No authentication token available');
-        throw new Error('Authentication required');
+        throw new Error('Authentication token is missing');
       }
+
+      // Format topic name consistently for DB (with spaces)
+      const formattedTopicName = formatTopicNameForDb(topicName);
+      console.log(`📝 Creating quiz task for topic: "${formattedTopicName}"`);
       
-      // 🔧 Extract userId from user context or token
-      let userId = user?.UserId || user?.userId || user?.id || '';
+      const startDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const requestBody = {
+        UserId: userId,
+        TopicName: formattedTopicName,
+        Level: userLevel,
+        TaskType: 'quiz',
+        StartDate: startDate
+      };
       
-      // If no userId from user context, try to extract from token
-      if (!userId) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            userId = payload.id || payload.userId || payload.sub || '';
-            console.log('📋 Extracted userId from token:', userId);
-          }
-        } catch (err) {
-          console.error('Error extracting userId from token:', err);
-        }
-      }
+      console.log('📤 Quiz task creation request:', requestBody);
       
-      if (!userId) {
-        console.error('❌ No userId found in user context or token');
-        throw new Error('User ID not found');
-      }
-      
-      console.log('✅ Using userId for quiz task:', userId);
-      
-      // 1. Complete flashcard task if it exists and isn't a client-side temporary ID
-      if (taskId && !taskId.startsWith('client_')) {
-        try {
-          // Update task completion status
-          const completeResponse = await fetch('/api/tasks', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              taskId: taskId,
-              TaskScore: 100,
-              DurationTask: durationSeconds,
-              CompletionDate: new Date().toISOString()
-            })
-          });
-          
-          console.log(`Task completion API response status: ${completeResponse.status}`);
-          
-          if (!completeResponse.ok) {
-            console.error('API error when completing flashcard task:', await completeResponse.text());
-            // Continue anyway
-          } else {
-            console.log('Successfully completed flashcard task');
-          }
-        } catch (apiError) {
-          console.error('Error calling task completion API:', apiError);
-          // Continue anyway
-        }
-      } else {
-        console.log('Using temporary task ID, skipping flashcard task completion');
-      }
-      
-      // 2. Create a new quiz task with properly formatted topic name AND UserId
-      let quizTaskId = null;
-      try {
-        // Format topic name consistently for DB (with spaces)
-        const formattedTopicName = formatTopicNameForDb(topicName);
-        console.log(`📝 Creating quiz task for topic: "${formattedTopicName}"`);
-        // ✅ Use MySQL format for StartDate
-        const startDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const requestBody = {
-          UserId: userId,
-          TopicName: formattedTopicName,
-          Level: userLevel,
-          TaskType: 'quiz',
-          StartDate: startDate // ✅ MySQL format instead of ISO
-        };
-        console.log('📤 Quiz task creation request:', requestBody);
-        
-        const createTaskResponse = await fetch('/api/tasks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(requestBody)
-        });
-        
-        console.log('📡 Quiz task response status:', createTaskResponse.status);
-        
-        if (createTaskResponse.ok) {
-          const taskData = await createTaskResponse.json();
-          
-          if (taskData && taskData.TaskId) {
-            quizTaskId = taskData.TaskId;
-            console.log('✅ Quiz task created successfully:', quizTaskId);
-            
-            // 3. Add words to the new quiz task (only if we have a real task ID)
-            if (reviewedWords.length > 0) {
-              try {
-                console.log(`📝 Adding ${reviewedWords.length} words to quiz task...`);
-                
-                const addWordsResponse = await fetch('/api/words/to-task', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    taskId: quizTaskId,
-                    wordIds: reviewedWords
-                  })
-                });
-                
-                console.log(`Add words to quiz task API response status: ${addWordsResponse.status}`);
-                
-                if (addWordsResponse.ok) {
-                  console.log(`Successfully added ${reviewedWords.length} words to quiz task`);
-                } else {
-                  const errorText = await addWordsResponse.text();
-                  console.warn('Failed to add words to quiz task:', errorText);
-                }
-              } catch (wordsError) {
-                console.error('Error adding words to quiz task:', wordsError);
-              }
-            }
-          } else {
-            console.error('❌ Quiz task creation response missing TaskId:', taskData);
-          }
-        } else {
-          const errorText = await createTaskResponse.text();
-          console.error('❌ Failed to create quiz task:', {
-            status: createTaskResponse.status,
-            error: errorText
-          });
-          // אל תיצור client_ ID - פשוט המשך בלי task ID
-          console.log('⚠️ Proceeding to quiz without task ID');
-        }
-      } catch (error) {
-        console.error('💥 Quiz task creation error:', error);
-        console.log('⚠️ Proceeding to quiz without task ID');
-      }
-      
-      // Navigate to quiz - עם או בלי task ID
-      const urlTopicName = topicName;
-      const quizParams = new URLSearchParams({
-        level: userLevel.toString()
+      const createTaskResponse = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
       });
       
-      // רק אם יש task ID אמיתי
-      if (quizTaskId && !quizTaskId.startsWith('client_')) {
-        quizParams.append('taskId', quizTaskId);
-        console.log('✅ Adding real taskId to URL:', quizTaskId);
-      } else {
-        console.log('⚠️ No valid taskId - quiz will work without progress tracking');
+      console.log('📡 Quiz task response status:', createTaskResponse.status);
+
+      if (!createTaskResponse.ok) {
+        const errorText = await createTaskResponse.text();
+        console.error('❌ Failed to create quiz task:', {
+          status: createTaskResponse.status,
+          error: errorText
+        });
+        throw new Error(`Failed to create quiz task: ${errorText}`);
       }
-      
+
+      const taskData = await createTaskResponse.json();
+      console.log('✅ Received task data:', taskData);
+
+      if (!taskData.TaskId) {
+        throw new Error('Quiz task created but no TaskId received');
+      }
+
+      const quizTaskId = taskData.TaskId;
+      console.log('✅ Quiz task created with ID:', quizTaskId);
+
+      // Build quiz URL with required parameters
+      const urlTopicName = topicName;
+      const quizParams = new URLSearchParams({
+        level: userLevel.toString(),
+        taskId: quizTaskId
+      });
+
       const quizUrl = `/topics/${urlTopicName}/tasks/quiz?${quizParams.toString()}`;
       console.log(`🎯 Navigating to: ${quizUrl}`);
       
       router.push(quizUrl);
-      
+
     } catch (error) {
       console.error('💥 Error starting quiz:', error);
-      setError('אירעה שגיאה במעבר למבחן. אנא נסו שנית.');
+      setError('אירעה שגיאה בהתחלת המבחן. אנא נסו שנית.');
+      setIsLoading(false);
     } finally {
       console.groupEnd();
     }
