@@ -1,40 +1,43 @@
-# Unity Voice Learning Platform - Frontend
+# Unity Voice Learning Platform - Backend API
 
-A modern Next.js frontend application for the Unity Voice Learning Platform, designed to help users improve their English speaking skills through interactive voice-based exercises.
+A robust Express.js backend API for the Unity Voice Learning Platform, providing comprehensive learning management, user authentication, and AI-powered voice analysis capabilities.
 
 ## Features
 
-- 🎯 **Interactive Learning Tasks**: Flashcards, conversations, posts, and quizzes
-- 🎤 **Voice Recognition**: Real-time speech analysis and feedback
-- 📊 **Progress Tracking**: Comprehensive dashboard with learning analytics
-- 🌐 **Multi-level Learning**: Beginner, intermediate, and advanced levels
-- 🎨 **Modern UI**: Beautiful, responsive design with Tailwind CSS
-- 🔐 **Secure Authentication**: JWT-based user authentication
-- 📱 **Mobile Responsive**: Works seamlessly on all devices
+- 🔐 **Authentication & Authorization**: JWT-based secure user management
+- 📚 **Learning Management**: Tasks, topics, levels, and progress tracking
+- 🎤 **Voice Processing**: Integration with Azure OpenAI for speech analysis
+- 📊 **Analytics**: Comprehensive learning analytics and reporting
+- 🗄️ **Database Management**: MySQL with Sequelize ORM
+- 🛡️ **Security**: Helmet, CORS, input validation, and rate limiting
+- 📝 **API Documentation**: RESTful API with comprehensive endpoints
+- 🔧 **Diagnostics**: Built-in database and system health monitoring
 
 ## Tech Stack
 
-- **Framework**: Next.js 15.3.2 with App Router
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js 4.21.2
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Lucide React, React Icons
-- **Charts**: Recharts
-- **HTTP Client**: Axios
-- **Authentication**: JWT with jsonwebtoken
-- **Voice Processing**: Azure OpenAI integration
+- **Database**: MySQL with Sequelize ORM
+- **Authentication**: JWT (jsonwebtoken)
+- **Security**: Helmet, CORS, bcryptjs
+- **AI Integration**: OpenAI API
+- **Validation**: express-validator
+- **Development**: nodemon, ts-node
 
 ## Prerequisites
 
 - Node.js 18.0.0 or higher
 - npm 8.0.0 or higher
-- Unity Voice Backend API running
+- MySQL 8.0 or higher
+- Azure OpenAI API access (optional, for AI features)
 
 ## Installation
 
 1. **Clone and navigate to the project**:
    ```bash
    git clone <repository-url>
-   cd unity-voice-frontend
+   cd unity-voice-backend
    ```
 
 2. **Install dependencies**:
@@ -44,25 +47,47 @@ A modern Next.js frontend application for the Unity Voice Learning Platform, des
 
 3. **Environment Configuration**:
    ```bash
-   cp .env.example .env.local
+   cp .env.example .env
    ```
    
-   Edit `.env.local` with your configuration:
+   Edit `.env` with your configuration:
    ```env
-   # API Configuration
-   NEXT_PUBLIC_API_URL=http://localhost:8000
-   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   # Server Configuration
+   PORT=8000
+   NODE_ENV=development
    
-   # Azure OpenAI
-   NEXT_PUBLIC_AZURE_OPENAI_API_KEY=your_api_key
-   NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-   NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment
+   # Database Configuration
+   MYSQL_HOST=localhost
+   MYSQL_PORT=3306
+   MYSQL_USER=root
+   MYSQL_PASSWORD=your_password
+   MYSQL_DATABASE=unity_voice_db
+   MYSQL_SSL=false
    
    # Authentication
-   NEXT_PUBLIC_JWT_SECRET=your_jwt_secret
+   JWT_SECRET=your_super_secret_jwt_key_here_change_in_production
+   JWT_EXPIRES_IN=24h
    
-   # Database (for API routes)
-   NEXT_PUBLIC_DATABASE_URL=mysql://user:password@localhost:3306/unity_voice_db
+   # Azure OpenAI Configuration
+   AZURE_OPENAI_API_KEY=your_azure_openai_api_key
+   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+   AZURE_OPENAI_API_VERSION=2024-02-15-preview
+   AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name
+   
+   # CORS Configuration
+   CORS_ORIGIN=http://localhost:3000
+   
+   # Security
+   BCRYPT_ROUNDS=12
+   ```
+
+4. **Database Setup**:
+   ```bash
+   # Create database
+   mysql -u root -p -e "CREATE DATABASE unity_voice_db;"
+   
+   # Run migrations
+   npm run migrate
    ```
 
 ## Development
@@ -72,83 +97,137 @@ A modern Next.js frontend application for the Unity Voice Learning Platform, des
    npm run dev
    ```
 
-2. **Open your browser**:
-   Navigate to [http://localhost:3000](http://localhost:3000)
+2. **API will be available at**:
+   [http://localhost:8000](http://localhost:8000)
 
 3. **Available Scripts**:
    ```bash
-   npm run dev          # Start development server
-   npm run build        # Build for production
+   npm run dev          # Start development server with hot reload
+   npm run build        # Build TypeScript to JavaScript
    npm run start        # Start production server
    npm run lint         # Run ESLint
    npm run type-check   # Run TypeScript type checking
+   npm run migrate      # Run database migrations
+   npm run diagnose     # Run database diagnostics
+   npm run db:test      # Test database connection
    ```
 
 ## Project Structure
 
 ```
-unity-voice-frontend/
+unity-voice-backend/
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/               # API routes (server-side)
-│   │   ├── components/        # Reusable UI components
-│   │   ├── dashboard/         # Dashboard pages
-│   │   ├── topics/           # Topic-based learning pages
-│   │   ├── lib/              # Utility libraries
-│   │   └── globals.css       # Global styles
-│   ├── hooks/                 # Custom React hooks
-│   ├── providers/            # Context providers
-│   ├── types/                # TypeScript type definitions
-│   └── utils/                # Utility functions
-├── public/                    # Static assets
-├── data/                     # Static data files
-└── src/config/              # Configuration files
+│   ├── controllers/           # Request handlers
+│   ├── middleware/           # Express middleware
+│   ├── models/              # Sequelize models
+│   ├── routes/              # API route definitions
+│   ├── services/            # Business logic services
+│   ├── scripts/             # Utility scripts
+│   ├── lib/                 # Shared libraries
+│   ├── types/               # TypeScript type definitions
+│   └── server.ts            # Application entry point
+├── dist/                    # Compiled JavaScript (after build)
+├── migrations/              # Database migration files
+└── seeders/                # Database seed files
 ```
 
-## Key Components
-
-### Learning Modules
-- **Flashcards**: Interactive vocabulary learning
-- **Conversations**: AI-powered speaking practice
-- **Posts**: Writing and speaking exercises
-- **Quizzes**: Knowledge assessment
-
-### Dashboard Features
-- User progress tracking
-- Learning analytics
-- Achievement system
-- Performance metrics
+## API Endpoints
 
 ### Authentication
-- User registration and login
-- JWT token management
-- Protected routes
-- Profile management
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/validate` - Token validation
 
-## API Integration
+### Users
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/profile` - Update user profile
+- `GET /api/users/stats` - Get user statistics
 
-The frontend communicates with the Unity Voice Backend through:
+### Topics & Tasks
+- `GET /api/topics` - Get all topics
+- `GET /api/tasks` - Get user tasks
+- `POST /api/tasks` - Create new task
+- `PUT /api/tasks/:id/complete` - Mark task as complete
+- `GET /api/tasks/:id` - Get specific task
 
-- **REST API**: Standard HTTP requests for data operations
-- **Real-time Features**: WebSocket connections for live interactions
-- **File Uploads**: Audio file processing for voice analysis
+### Learning Management
+- `GET /api/user/level` - Get user level information
+- `PUT /api/user-level/update` - Update user level
+- `GET /api/words` - Get vocabulary words
+- `POST /api/words/learned` - Mark words as learned
+
+### Analytics & Reporting
+- `GET /api/dashboard/user-stats` - User statistics
+- `GET /api/dashboard/completion-rates` - Completion rates
+- `GET /api/dashboard/topic-analysis` - Topic analysis
+- `GET /api/dashboard/export` - Export learning data
+
+### Voice & AI
+- `POST /api/interactive-session` - Start interactive session
+- `POST /api/analyze-conversation` - Analyze conversation
+- `POST /api/conversation-complete` - Complete conversation
+
+### System
+- `GET /api/health` - Health check
+- `GET /api/migrations` - Database migration status
+
+## Database Schema
+
+### Core Tables
+- **Users**: User accounts and profiles
+- **Topics**: Learning topics and categories
+- **Tasks**: Individual learning tasks
+- **UserInLevel**: User progress tracking
+- **Posts**: User-generated content
+- **Comments**: Task comments and feedback
+- **Words**: Vocabulary database
+- **WordInTask**: Word-task relationships
+
+### Relationships
+- Users have many Tasks, Posts, Comments
+- Topics have many Tasks
+- Tasks belong to Users and Topics
+- Words can be associated with multiple Tasks
+
+## Authentication & Security
+
+### JWT Authentication
+```javascript
+// Protected route example
+app.use('/api/protected', authenticateToken);
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  // ... token validation logic
+}
+```
+
+### Security Features
+- Password hashing with bcrypt
+- JWT token expiration
+- CORS configuration
+- Input validation and sanitization
+- SQL injection prevention
+- Rate limiting (configurable)
 
 ## Deployment
 
-### Vercel (Recommended)
-
-1. **Connect your repository** to Vercel
-2. **Set environment variables** in Vercel dashboard
-3. **Deploy**: Automatic deployment on push to main branch
-
-### Manual Deployment
+### Production Environment
 
 1. **Build the application**:
    ```bash
    npm run build
    ```
 
-2. **Start production server**:
+2. **Set production environment variables**:
+   ```env
+   NODE_ENV=production
+   PORT=8000
+   # ... other production variables
+   ```
+
+3. **Start production server**:
    ```bash
    npm start
    ```
@@ -162,32 +241,110 @@ COPY package*.json ./
 RUN npm ci --only=production
 COPY . .
 RUN npm run build
-EXPOSE 3000
+EXPOSE 8000
 CMD ["npm", "start"]
 ```
 
-### Environment Variables for Production
+### Cloud Deployment Options
 
-```env
-NODE_ENV=production
-NEXT_PUBLIC_API_URL=https://your-api-domain.com
-NEXT_PUBLIC_APP_URL=https://your-frontend-domain.com
-# ... other production variables
+#### Heroku
+```bash
+# Install Heroku CLI and login
+heroku create unity-voice-api
+heroku config:set NODE_ENV=production
+heroku config:set JWT_SECRET=your_production_secret
+# ... set other environment variables
+git push heroku main
 ```
 
-## Performance Optimization
+#### Railway
+```bash
+# Connect repository to Railway
+# Set environment variables in Railway dashboard
+# Deploy automatically on push
+```
 
-- **Image Optimization**: Next.js automatic image optimization
-- **Code Splitting**: Automatic route-based code splitting
-- **Caching**: Optimized caching strategies
-- **Bundle Analysis**: Use `npm run build` to analyze bundle size
+#### DigitalOcean App Platform
+```yaml
+# app.yaml
+name: unity-voice-backend
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: your-username/unity-voice-backend
+    branch: main
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: NODE_ENV
+    value: production
+```
 
-## Browser Support
+## Database Management
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+### Migrations
+```bash
+# Create new migration
+npx sequelize-cli migration:generate --name add-new-feature
+
+# Run migrations
+npm run migrate
+
+# Rollback migration
+npx sequelize-cli db:migrate:undo
+```
+
+### Backup & Restore
+```bash
+# Backup database
+mysqldump -u root -p unity_voice_db > backup.sql
+
+# Restore database
+mysql -u root -p unity_voice_db < backup.sql
+```
+
+## Monitoring & Diagnostics
+
+### Health Checks
+- `GET /api/health` - Basic health status
+- `npm run diagnose` - Comprehensive system diagnostics
+- `npm run db:test` - Database connection test
+
+### Logging
+```javascript
+// Structured logging example
+console.log(`[${new Date().toISOString()}] ${level}: ${message}`, metadata);
+```
+
+### Performance Monitoring
+- Database query performance
+- API response times
+- Memory usage tracking
+- Error rate monitoring
+
+## Testing
+
+### Unit Tests
+```bash
+npm test
+```
+
+### Integration Tests
+```bash
+npm run test:integration
+```
+
+### API Testing
+```bash
+# Using curl
+curl -X GET http://localhost:8000/api/health
+
+# Using Postman
+# Import the provided Postman collection
+```
 
 ## Contributing
 
@@ -197,31 +354,60 @@ NEXT_PUBLIC_APP_URL=https://your-frontend-domain.com
 4. Push to branch: `git push origin feature/new-feature`
 5. Submit a pull request
 
+### Development Guidelines
+- Follow TypeScript strict mode
+- Use ESLint configuration
+- Write comprehensive tests
+- Document API changes
+- Follow semantic versioning
+
 ## Troubleshooting
 
 ### Common Issues
 
-1. **API Connection Errors**:
-   - Verify backend is running
-   - Check CORS configuration
-   - Validate environment variables
+1. **Database Connection Errors**:
+   ```bash
+   # Check MySQL service
+   sudo systemctl status mysql
+   
+   # Test connection
+   npm run db:test
+   
+   # Check environment variables
+   echo $MYSQL_HOST $MYSQL_USER $MYSQL_DATABASE
+   ```
 
-2. **Build Errors**:
-   - Clear `.next` directory: `rm -rf .next`
-   - Reinstall dependencies: `rm -rf node_modules && npm install`
-   - Check TypeScript errors: `npm run type-check`
+2. **Port Already in Use**:
+   ```bash
+   # Find process using port 8000
+   lsof -i :8000
+   
+   # Kill process
+   kill -9 <PID>
+   
+   # Or use different port
+   PORT=8001 npm run dev
+   ```
 
-3. **Authentication Issues**:
-   - Verify JWT secret matches backend
+3. **JWT Token Issues**:
+   - Verify JWT_SECRET matches frontend
    - Check token expiration
-   - Clear browser localStorage
+   - Validate token format
 
-### Development Tips
+### Performance Issues
+- Monitor database query performance
+- Check for N+1 query problems
+- Optimize database indexes
+- Use connection pooling
 
-- Use React DevTools for component debugging
-- Enable verbose logging in development
-- Use TypeScript strict mode for better type safety
-- Test on multiple devices and browsers
+## API Documentation
+
+### Swagger/OpenAPI
+Access interactive API documentation at:
+`http://localhost:8000/api-docs` (when implemented)
+
+### Postman Collection
+Import the provided Postman collection for easy API testing.
 
 ## License
 
@@ -232,8 +418,8 @@ MIT License - see LICENSE file for details
 For support and questions:
 - Create an issue in the repository
 - Contact the Unity Voice Team
-- Check the documentation wiki
+- Check the API documentation
 
 ---
 
-**Unity Voice Learning Platform** - Empowering English learners through innovative voice technology. 
+**Unity Voice Learning Platform Backend** - Powering intelligent language learning through robust API services. 
