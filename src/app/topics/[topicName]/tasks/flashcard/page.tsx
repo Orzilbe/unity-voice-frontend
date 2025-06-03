@@ -55,7 +55,7 @@ export default function FlashcardTask() {
   const [showReviewedWordsModal, setShowReviewedWordsModal] = useState(false);
   const [allWordsReviewed, setAllWordsReviewed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [wordsAlreadySaved, setWordsAlreadySaved] = useState(false);
   // Get user ID from auth context
   const userId = user?.UserId || user?.userId || user?.id || '';
 
@@ -306,111 +306,222 @@ export default function FlashcardTask() {
   const [isSavingWords, setIsSavingWords] = useState(false);
 
   // פונקציה לשמירת כל המילים למשימה בכפיפה אחת
-  const saveAllWordsToTask = useCallback(async () => {
-    // 🔧 בדיקות מניעת שמירה
-    if (isSavingWords) {
-      console.log('⏳ Already saving words, skipping...');
-      return;
+// פונקציה מתוקנת עם טיפול משופר בשגיאות
+// מצא את הפונקציה saveAllWordsToTask והחלף אותה בקוד הזה:
+
+const saveAllWordsToTask = useCallback(async () => {
+  // 🔧 בדיקות מניעת שמירה
+  if (isSavingWords) {
+    console.log('⏳ Already saving words, skipping...');
+    return;
+  }
+  
+  if (!taskId) {
+    console.log('⚠️ No taskId available - cannot save words to backend');
+    return;
+  }
+  
+  if (taskId.startsWith('client_')) {
+    console.log('⚠️ Client-side taskId detected');
+    return;
+  }
+  
+  if (flashcards.length === 0) {
+    console.log('📭 No flashcards to save');
+    return;
+  }
+
+  // ✅ בדיקה חדשה - אם כבר נשמר, אל תשמור שוב
+  if (wordsAlreadySaved) {
+    console.log('✅ Words already saved for this task, skipping...');
+    return;
+  }
+  
+  setIsSavingWords(true);
+  console.log(`💾 Starting to save ${flashcards.length} words to task ${taskId}`);
+  
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
     }
     
-    if (!taskId) {
-      console.log('⚠️ No taskId available - cannot save words to backend');
-      console.log('   This is normal if task creation failed. User can still practice.');
-      return;
+    const wordIds = flashcards.map(card => card.WordId);
+    const requestPayload = {
+      taskId: taskId,
+      wordIds: wordIds
+    };
+    
+    console.log('📤 Sending request:', {
+      taskId,
+      wordIdsCount: wordIds.length,
+      sampleWordIds: wordIds.slice(0, 3)
+    });
+    
+    const response = await fetch('/api/words/to-task', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(requestPayload)
+    });
+    
+    console.log(`📡 Response: ${response.status} ${response.statusText}`);
+    
+    const responseText = await response.text();
+    console.log('📄 Response body:', responseText);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${responseText}`);
     }
     
-    if (taskId.startsWith('client_')) {
-      console.log('⚠️ Client-side taskId detected - this should not happen anymore');
-      return;
+    const result = responseText ? JSON.parse(responseText) : { success: true };
+    
+    if (result.success === false) {
+      throw new Error(result.error || 'Operation failed');
     }
     
-    if (flashcards.length === 0) {
-      console.log('📭 No flashcards to save');
-      return;
-    }
+    console.log(`✅ Successfully saved ${wordIds.length} words`);
     
-    setIsSavingWords(true);
+    // ✅ סמן שהשמירה הושלמה בהצלחה
+    setWordsAlreadySaved(true);
     
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        console.error('❌ No authentication token found');
-        return;
-      }
-      
-      console.log(`💾 Saving ${flashcards.length} words to task ${taskId}`);
-      
-      const wordIds = flashcards.map(card => card.WordId);
-      
-      console.log('📤 Sending data to API:', { 
-        taskId, 
-        wordIdsCount: wordIds.length,
-        sampleWordIds: wordIds.slice(0, 3) // רק כמה דוגמאות ללוג
+    return result;
+    
+  } catch (error) {
+    console.error('💥 Error saving words:', error);
+    
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        isNetworkError: error.message.includes('Failed to fetch')
       });
-      
-      const response = await fetch('/api/words/to-task', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          taskId: taskId,
-          wordIds: wordIds
-        })
-      });
-      
-      console.log('📡 API response status:', response.status);
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Words saved successfully:', result);
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to save words:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        
-        // ניסיון לנתח השגיאה
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('📋 Parsed error details:', errorJson);
-        } catch (e) {
-          console.error('⚠️ Could not parse error response as JSON');
-        }
-      }
-    } catch (error) {
-      console.error('💥 Error saving words:', error);
-      
-      // זיהוי ספציפי של שגיאות רשת
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        console.error('🌐 Network error detected!');
-        console.error('🔍 Possible causes:');
-        console.error('   - Backend server is not running');
-        console.error('   - Wrong API_URL in environment variables');
-        console.error('   - Network connectivity issues');
-        console.error('');
-        console.error('🔧 Debug info:');
-        console.error('   - NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL || 'Not set');
-        console.error('   - Trying to reach: /api/words/to-task');
-      } else if (error instanceof Error) {
-        console.error('❌ Error name:', error.name);
-        console.error('❌ Error message:', error.message);
-      }
-    } finally {
-      setIsSavingWords(false);
     }
-  }, [taskId, flashcards, isSavingWords]);
+    
+    // אם יש שגיאה, לא נסמן כנשמר כדי שנוכל לנסות שוב
+    
+  } finally {
+    setIsSavingWords(false);
+    console.log('🏁 Save operation completed');
+  }
+}, [taskId, flashcards, isSavingWords, wordsAlreadySaved]); // ✅ עדכן dependencies
+
+// פונקציה נוספת לבדיקת חיבור API (אופציונלית)
+const testApiConnection = useCallback(async () => {
+  try {
+    console.log('🧪 Testing API connection...');
+    
+    const response = await fetch('/api/health', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    console.log(`📡 Health check response: ${response.status}`);
+    
+    if (response.ok) {
+      const healthData = await response.json();
+      console.log('✅ API is healthy:', healthData);
+      return true;
+    } else {
+      console.error('❌ API health check failed');
+      return false;
+    }
+  } catch (error) {
+    console.error('💥 API connection test failed:', error);
+    return false;
+  }
+}, []);
+
+// פונקציה להצגת מידע debug (אופציונלית)
+const logDebugInfo = useCallback(() => {
+  console.group('🔍 Debug Information');
+  console.log('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'N/A'
+  });
+  
+  console.log('Component State:', {
+    taskId,
+    flashcardsCount: flashcards.length,
+    isSavingWords,
+    userId
+  });
+  
+  console.log('Authentication:', {
+    hasToken: !!getAuthToken(),
+    tokenLength: getAuthToken()?.length || 0
+  });
+  
+  console.groupEnd();
+}, [taskId, flashcards.length, isSavingWords, userId]);
 
   // Save words to task when flashcards are loaded
-  useEffect(() => {
-    if (flashcards.length > 0 && taskId && !taskId.startsWith('client_')) {
-      console.log('Saving words to task...');
-      saveAllWordsToTask();
+// useEffect מתוקן לשמירת מילים
+// מצא את הuseEffect הזה והחלף אותו:
+
+// Save words to task when flashcards are loaded
+useEffect(() => {
+  // Save words only if not already saved and not currently saving
+  if (flashcards.length > 0 && 
+      taskId && 
+      !taskId.startsWith('client_') && 
+      !isSavingWords && 
+      !wordsAlreadySaved) {
+    
+    console.log('🎯 Triggering one-time word save...');
+    console.log(`   - Flashcards: ${flashcards.length}`);
+    console.log(`   - Task ID: ${taskId}`);
+    console.log(`   - Already saved: ${wordsAlreadySaved}`);
+    console.log(`   - Currently saving: ${isSavingWords}`);
+    
+    // Add a small delay to ensure all state is settled
+    const saveTimer = setTimeout(() => {
+      saveAllWordsToTask().catch(error => {
+        console.error('❌ Automatic word save failed:', error);
+      });
+    }, 500); // השהיה של 500ms
+    
+    return () => {
+      clearTimeout(saveTimer);
+    };
+  } else {
+    // Log why we're not saving
+    if (flashcards.length === 0) {
+      console.log('⏸️ Not saving words: No flashcards loaded yet');
+    } else if (!taskId) {
+      console.log('⏸️ Not saving words: No task ID available');
+    } else if (taskId.startsWith('client_')) {
+      console.log('⏸️ Not saving words: Using client-side task ID');
+    } else if (isSavingWords) {
+      console.log('⏸️ Not saving words: Already in progress');
+    } else if (wordsAlreadySaved) {
+      console.log('⏸️ Not saving words: Already saved successfully');
     }
-  }, [flashcards, taskId]);
+  }
+}, [flashcards.length, taskId, isSavingWords, wordsAlreadySaved]); // ✅ עדכן dependencies
+
+useEffect(() => {
+  console.log('🔄 Task ID changed, resetting word save state');
+  setWordsAlreadySaved(false);
+}, [taskId]);
+
+
+// הוספה אופציונלית: useEffect לבדיקת API בטעינה
+useEffect(() => {
+  // Test API connection when component mounts (optional)
+  if (process.env.NODE_ENV === 'development') {
+    const timer = setTimeout(() => {
+      testApiConnection();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }
+}, [testApiConnection]);
 
   // 🔄 פונקציה מעודכנת לחישוב המילים הפעילות (שלא נסקרו)
   const getActiveFlashcards = useCallback(() => {
