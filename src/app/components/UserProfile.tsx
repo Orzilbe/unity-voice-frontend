@@ -1,4 +1,4 @@
-// apps/web/src/app/components/UserProfile.tsx
+// unity-voice-frontend/src/app/components/UserProfile.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,25 +22,20 @@ interface User {
 
 interface UserProfileProps {
   isVisible?: boolean;
-  onClose?: () => void;
+  onToggle?: () => void;  // Changed from onClose to onToggle
   showIcon?: boolean;
 }
 
-const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfileProps) => {
-  const [showProfile, setShowProfile] = useState(isVisible);
+const UserProfile = ({ isVisible = false, onToggle, showIcon = true }: UserProfileProps) => {
   const [userData, setUserData] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Update showProfile when isVisible changes
-  useEffect(() => {
-    setShowProfile(isVisible);
-  }, [isVisible]);
 
   // Fetch user data from the API
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!showProfile) return;
+      if (!isVisible) return;
     
+      console.log('📊 UserProfile: Fetching user data...');
       setIsLoading(true);
       try {
         const data = await authenticatedApiCall('/user/profile');
@@ -60,24 +55,23 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
         });
         
         setIsLoading(false);
+        console.log('✅ UserProfile: User data loaded successfully');
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('❌ UserProfile: Error fetching user data:', error);
         setIsLoading(false);
       }
     };
     
-    if (showProfile) {
+    if (isVisible) {
       fetchUserData();
     }
-  }, [showProfile]);
+  }, [isVisible]);
 
-  const toggleProfile = () => {
-    const newState = !showProfile;
-    setShowProfile(newState);
-    
-    // If closing and onClose callback exists, call it
-    if (!newState && onClose) {
-      onClose();
+  // Simple handler that just calls the parent's toggle function
+  const handleToggle = () => {
+    console.log('🔄 UserProfile: Toggle clicked');
+    if (onToggle) {
+      onToggle();
     }
   };
 
@@ -94,7 +88,7 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
         <div className="absolute top-4 right-4">
           <div 
             className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center cursor-pointer hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-            onClick={toggleProfile}
+            onClick={handleToggle}
           >
             {userData?.ProfilePicture ? (
               <Image 
@@ -112,7 +106,7 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
       )}
 
       {/* Profile modal */}
-      {showProfile && (
+      {isVisible && (
         <div className="absolute top-20 right-4 bg-white p-6 shadow-2xl rounded-2xl w-80 z-50 border border-gray-100 transform transition-all duration-300">
           <h2 className="text-2xl font-semibold mb-4 text-gray-800">User Profile</h2>
           
@@ -175,7 +169,7 @@ const UserProfile = ({ isVisible = false, onClose, showIcon = true }: UserProfil
           <div className="mt-6 space-y-2">
             <button
               className="w-full py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
-              onClick={toggleProfile}
+              onClick={handleToggle}
             >
               Close
             </button>
