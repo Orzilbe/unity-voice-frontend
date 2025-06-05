@@ -1,4 +1,4 @@
-// apps/web/src/lib/dbUtils.ts
+// unity-voice-frontend/src/lib/dbUtils.ts
 import { getSafeDbPool } from '../app/lib/db';
 import { ResultSetHeader } from 'mysql2';
 

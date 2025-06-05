@@ -1,4 +1,4 @@
-// apps/web/src/lib/auth.ts
+// unity-voice-frontend/src/lib/auth.ts
 
 import jwt from 'jsonwebtoken';
 import { authEndpoints } from '../config/api';

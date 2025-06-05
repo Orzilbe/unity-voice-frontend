@@ -1,4 +1,4 @@
-// apps/web/src/hooks/useAuth.ts
+// unity-voice-frontend/src/hooks/useAuth.ts
 import { useState, useEffect, useCallback } from 'react';
 import { authEndpoints } from '../config/api';
 import { setAuthToken, setUserData, getAuthToken, clearAuthData } from '../utils/auth-cookies';

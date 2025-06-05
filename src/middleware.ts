@@ -1,4 +1,4 @@
-// apps/web/src/middleware.ts
+// unity-voice-frontend/src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
