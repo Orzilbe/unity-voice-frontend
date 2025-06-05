@@ -1,4 +1,5 @@
-// apps/web/src/app/topics/page.tsx
+// unity-voice-frontend/src/app/topics/page.tsx
+
 'use client';
 
 import { useState, useEffect } from "react";
@@ -186,7 +187,7 @@ export default function Topics() {
       `}</style>
 
       {/* User Profile Component */}
-      <UserProfile isVisible={showProfile} onClose={toggleProfile} showIcon={true} />
+      <UserProfile isVisible={showProfile} onToggle={toggleProfile} showIcon={true} />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
