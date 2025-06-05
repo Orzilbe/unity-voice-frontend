@@ -1,3 +1,4 @@
+// unity-voice-frontend/src/app/api/auth/verifyAuth.ts
 import { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 

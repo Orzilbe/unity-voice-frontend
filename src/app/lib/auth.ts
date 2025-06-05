@@ -1,4 +1,4 @@
-// apps/web/src/lib/auth.ts
+// unity-voice-frontend/src/app/lib/auth.ts
 import { User } from '../../types';
 import { authEndpoints, healthCheck } from '../../config/api';
 

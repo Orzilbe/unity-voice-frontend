@@ -173,261 +173,47 @@ export default function PostTask() {
     setImageUrl(newImageUrl);
   }, []);
 
-  useEffect(() => {
-    const fetchPostData = async () => {
-      if (!isAuthenticated || !topicName) return;
-      
-      const token = getAuthToken();
-      if (!token) {
-        setError('Authentication required');
-        router.push('/login');
-        return;
-      }
-      
-      try {
-        setIsLoadingPost(true);
-        setError(null);
+
+    useEffect(() => {
+      const fetchPostData = async () => {
+        if (!isAuthenticated || !topicName || !taskId) return;
         
-        console.log(`Loading post for topic: ${topicName}`);
-        
-        // Check if we have a taskId. If not, create one
-        let currentTaskId = taskId;
-        if (!currentTaskId) {
-          console.log('No taskId provided, creating new post task');
-          currentTaskId = await createPostTask();
-          if (!currentTaskId) {
-            throw new Error('Failed to create task');
-          }
+        const token = getAuthToken();
+        if (!token) {
+          setError('Authentication required');
+          return;
         }
-        
-        // Try to find existing post directly using the taskId-specific endpoint
-        let existingPostData = null;
-        let existingPostId = null;
         
         try {
-          console.log(`Checking for existing post with taskId: ${currentTaskId}`);
-          // Use the new taskId-specific endpoint
-          const postsResponse = await fetch(`/api/posts/${encodeURIComponent(currentTaskId)}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+          setIsLoadingPost(true);
+          const response = await fetch(`/api/posts/${encodeURIComponent(taskId)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           
-          if (postsResponse.ok) {
-            const postsData = await postsResponse.json();
-            if (Array.isArray(postsData) && postsData.length > 0) {
-              existingPostData = postsData[0];
-              existingPostId = existingPostData.PostID;
-              console.log(`Found existing post with ID: ${existingPostId}`);
-            } else {
-              console.log('No existing post found for this task');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.postData) {
+              setPost(data.postData.PostContent);
+              setRequiredWords(data.postData.RequiredWords || []);
+              setImageUrl(data.postData.Picture);
+              
+              if (data.postData.PostID) {
+                localStorage.setItem(`post_id_${taskId}`, data.postData.PostID);
+              }
             }
           } else {
-            console.warn(`Failed to check for existing post: ${postsResponse.status}`);
+            throw new Error('Failed to load post');
           }
-        } catch (checkError) {
-          console.error('Error checking for existing post:', checkError);
+        } catch (err) {
+          setError('Failed to load social post. Please try again later.');
+          // Fallback content here...
+        } finally {
+          setIsLoadingPost(false);
         }
-        
-        // If we found an existing post, use it
-        if (existingPostData && existingPostData.PostContent) {
-          console.log('Using existing post content');
-          setPost(existingPostData.PostContent);
-          
-          if (existingPostData.Picture) {
-            setImageUrl(existingPostData.Picture);
-          } else {
-            selectTopicImage(topicName);
-          }
-          
-          // Extract or generate required words
-          try {
-            const extractedWords = extractRequiredWords(existingPostData.PostContent);
-            if (extractedWords.length >= 5) {
-              setRequiredWords(extractedWords.slice(0, 5));
-            } else {
-              setRequiredWords(generateRequiredWords(topicName));
-            }
-          } catch (extractError) {
-            console.error('Error extracting words:', extractError);
-            setRequiredWords(generateRequiredWords(topicName));
-          }
-          
-          // If we have a post ID, store it for future use
-          if (existingPostId) {
-            localStorage.setItem(`post_id_${currentTaskId}`, existingPostId);
-          }
-        } else {
-          // Generate post content 
-          try {
-            const generatedPost = await generatePostContent(token);
-            
-            if (generatedPost && generatedPost.text) {
-              console.log('Using generated post content');
-              setPost(generatedPost.text);
-              setRequiredWords(generatedPost.requiredWords || generateRequiredWords(topicName));
-              selectTopicImage(topicName);
-              
-              // Always generate a post ID to ensure consistent behavior
-              const postId = crypto.randomUUID ? crypto.randomUUID() : `post_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-              localStorage.setItem(`post_id_${currentTaskId}`, postId);
-              console.log(`Generated post ID: ${postId} (saving to database)`);
-              
-              // Save to the database using the taskId-specific endpoint
-              try {
-                const saveResponse = await fetch(`/api/posts/${encodeURIComponent(currentTaskId)}`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    PostID: postId,
-                    PostContent: generatedPost.text,
-                    Picture: imageUrl
-                  })
-                });
-                
-                if (saveResponse.ok) {
-                  console.log('Post saved successfully to database');
-                  // Parse and update post ID if returned
-                  try {
-                    const saveResult = await saveResponse.json();
-                    if (saveResult.PostID) {
-                      localStorage.setItem(`post_id_${currentTaskId}`, saveResult.PostID);
-                      console.log(`Updated post ID to: ${saveResult.PostID}`);
-                    }
-                  } catch (parseError) {
-                    console.error('Error parsing save response:', parseError);
-                  }
-                } else {
-                  console.error(`Failed to save post: ${saveResponse.status}`);
-                  
-                  // Implement retry logic for critical operation
-                  console.log('Retrying post save operation...');
-                  setTimeout(async () => {
-                    try {
-                      const retryResponse = await fetch(`/api/posts/${encodeURIComponent(currentTaskId)}`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                          PostID: postId,
-                          PostContent: generatedPost.text,
-                          Picture: imageUrl
-                        })
-                      });
-                      
-                      if (retryResponse.ok) {
-                        console.log('Post saved successfully on retry');
-                      } else {
-                        console.error(`Retry failed to save post: ${retryResponse.status}`);
-                      }
-                    } catch (retryError) {
-                      console.error('Error in save retry:', retryError);
-                    }
-                  }, 2000); // Retry after 2 seconds
-                }
-              } catch (saveError) {
-                console.error('Error saving post to database:', saveError);
-              }
-            } else {
-              throw new Error('Failed to generate post content');
-            }
-          } catch (err) {
-            console.error('Error with post generation:', err);
-            
-            // Create a fallback post as last resort
-            console.log('Using fallback post content');
-            const formattedTopic = formatTopicName(topicName);
-            const fallbackPost = createFallbackPost(formattedTopic);
-            
-            setPost(fallbackPost);
-            setRequiredWords(generateRequiredWords(topicName));
-            selectTopicImage(topicName);
-            
-            // Create a post ID and save fallback post to database
-            const postId = crypto.randomUUID ? crypto.randomUUID() : `post_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-            localStorage.setItem(`post_id_${currentTaskId}`, postId);
-            console.log(`Generated fallback post ID: ${postId} (saving to database)`);
-            
-            try {
-              const saveResponse = await fetch(`/api/posts/${encodeURIComponent(currentTaskId)}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                  PostID: postId,
-                  PostContent: fallbackPost,
-                  Picture: imageUrl
-                })
-              });
-              
-              if (saveResponse.ok) {
-                console.log('Fallback post saved successfully to database');
-              } else {
-                console.error(`Failed to save fallback post: ${saveResponse.status}`);
-              }
-            } catch (saveError) {
-              console.error('Error saving fallback post to database:', saveError);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching/creating post:', err);
-        setError('Failed to load social post. Please try again later.');
-        
-        // Create a fallback post even when errors occur
-        const formattedTopic = formatTopicName(topicName);
-        const fallbackPost = createFallbackPost(formattedTopic);
-        
-        setPost(fallbackPost);
-        setRequiredWords(generateRequiredWords(topicName));
-        selectTopicImage(topicName);
-        
-        // If we have a taskId, save the fallback post
-        if (taskId) {
-          const postId = crypto.randomUUID ? crypto.randomUUID() : `post_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-          localStorage.setItem(`post_id_${taskId}`, postId);
-          
-          // Save fallback post to database
-          try {
-            const token = getAuthToken();
-            if (token) {
-              const saveResponse = await fetch(`/api/posts/${encodeURIComponent(taskId)}`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                  PostID: postId,
-                  PostContent: fallbackPost,
-                  Picture: imageUrl
-                })
-              });
-              
-              if (saveResponse.ok) {
-                console.log('Emergency fallback post saved successfully to database');
-              } else {
-                console.error(`Failed to save emergency fallback post: ${saveResponse.status}`);
-              }
-            }
-          } catch (saveError) {
-            console.error('Error saving emergency fallback post to database:', saveError);
-          }
-        }
-      } finally {
-        setIsLoadingPost(false);
-      }
-    };
-
-    fetchPostData();
-  }, [isAuthenticated, topicName, taskId, level, router, createPostTask, generatePostContent, extractRequiredWords, selectTopicImage, imageUrl]);
+      };
+    
+      fetchPostData();
+    }, [isAuthenticated, topicName, taskId]);
 
   useEffect(() => {
     if (taskId) {
@@ -664,265 +450,40 @@ export default function PostTask() {
     if (!userComment.trim()) return;
     
     setIsSubmitting(true);
-    setError(null);
-    
     try {
-      console.log('Submitting user comment and updating task...');
-      
-      // הערכת התגובה
-      const evaluation = evaluateComment(userComment);
-      
-      // קבלת הטוקן
       const token = getAuthToken();
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
+      const durationTask = Math.floor((Date.now() - (parseInt(sessionStorage.getItem(`task_start_${taskId}`) || '0') || Date.now() - 300000)) / 1000);
       
-      try {
-        // 1. חישוב משך זמן המשימה
-        let durationTask = 0;
-        const pageLoadTime = Date.now() - (window.performance?.timing?.navigationStart || Date.now() - 300000);
-        durationTask = Math.floor(pageLoadTime / 1000);
-        
-        const taskStartTime = sessionStorage.getItem(`task_start_${taskId}`);
-        if (taskStartTime) {
-          durationTask = Math.floor((Date.now() - parseInt(taskStartTime)) / 1000);
-        }
-        console.log(`Task duration: ${durationTask} seconds`);
-        
-        // 2. בדיקה אם יש לנו taskId, אם לא - יצירת אחד חדש
-        let currentTaskId = taskId;
-        
-        if (!currentTaskId) {
-          console.warn('No taskId found, creating a new task');
-          
-          try {
-            const createTaskResponse = await fetch('/api/tasks', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                TopicName: topicName || 'general', 
-                Level: level || '1',
-                TaskType: 'post',
-                StartDate: new Date(Date.now() - durationTask * 1000).toISOString()
-              })
-            });
-            
-            if (createTaskResponse.ok) {
-              const taskData = await createTaskResponse.json();
-              if (taskData.TaskId) {
-                currentTaskId = taskData.TaskId;
-                console.log(`Created new task with ID: ${currentTaskId}`);
-              } else {
-                // אם אין TaskId בתשובה, נשתמש במזהה שגוי
-                currentTaskId = crypto.randomUUID ? crypto.randomUUID() : `task_${Date.now()}`;
-                console.warn(`Response did not include TaskId, using generated ID: ${currentTaskId}`);
-              }
-            } else {
-              // אם יצירת המשימה נכשלה, נשתמש במזהה מקומי
-              currentTaskId = crypto.randomUUID ? crypto.randomUUID() : `task_${Date.now()}`;
-              console.error(`Failed to create task, using local ID: ${currentTaskId}`);
-            }
-          } catch (createTaskError) {
-            // אם יש שגיאה, נשתמש במזהה מקומי
-            currentTaskId = crypto.randomUUID ? crypto.randomUUID() : `task_${Date.now()}`;
-            console.error('Error creating task:', createTaskError);
-            console.error(`Using local task ID: ${currentTaskId}`);
-          }
-        }
-        
-        console.log(`Using task ID: ${currentTaskId}`);
-        
-        // 3. יצירת פוסט חדש
-        console.log('Creating new post for this task...');
-        
-        // יצירת מזהה פוסט חדש
-        const newPostId = crypto.randomUUID ? crypto.randomUUID() : `post_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        let finalPostId = newPostId;
-        
-        try {
-          // שמירת הפוסט
-          const createPostResponse = await fetch(`/api/posts/${encodeURIComponent(currentTaskId || '')}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              PostID: newPostId,
-              TaskId: currentTaskId,
-              PostContent: post || 'Default post content',
-              Picture: imageUrl
-            })
+      const response = await fetch('/api/comments/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId, postId: localStorage.getItem(`post_id_${taskId}`),
+          postContent: post, commentContent: userComment,
+          requiredWords, durationTask
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.feedback) {
+          setFeedbackResults({
+            score: result.feedback.totalScore,
+            clarityFeedback: result.feedback.clarityFeedback,
+            grammarFeedback: result.feedback.grammarFeedback,
+            vocabularyFeedback: result.feedback.vocabularyFeedback,
+            contentRelevanceFeedback: result.feedback.contentRelevanceFeedback,
+            overallFeedback: result.feedback.overallFeedback,
+            wordUsage: result.feedback.wordUsage || []
           });
-          
-          if (createPostResponse.ok) {
-            try {
-              const createResult = await createPostResponse.json();
-              if (createResult.PostID) {
-                finalPostId = createResult.PostID;
-              }
-              console.log(`Post created with ID: ${finalPostId}`);
-            } catch (parseError) {
-              console.error('Error parsing create post response:', parseError);
-            }
-          } else {
-            console.error('Failed to create post via API');
-          }
-        } catch (createPostError) {
-          console.error('Error creating post:', createPostError);
         }
-        
-        // 4. שמירת התגובה
-        console.log(`Saving comment for post ID: ${finalPostId}`);
-        
-        // יצירת מזהה תגובה
-        const commentId = crypto.randomUUID ? crypto.randomUUID() : `comment_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        
-        try {
-          // נסה לשמור את התגובה דרך נתיב ה-API
-          const commentResponse = await fetch('/api/comments', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              CommentID: commentId,
-              PostID: finalPostId,
-              commentContent: userComment,
-              Feedback: JSON.stringify(evaluation),
-              TaskId: currentTaskId // הוספת מזהה המשימה למקרה שצריך ליצור פוסט
-            })
-          });
-          
-          if (commentResponse.ok) {
-            console.log('Comment saved successfully via API');
-          } else {
-            console.error('Failed to save comment via API, proceeding anyway');
-          }
-        } catch (commentError) {
-          console.error('Error saving comment:', commentError);
-        }
-        
-        // 5. עדכון הטאסק - ניסיון באמצעות מספר נתיבים שונים
-        console.log('Updating task status using multiple approaches...');
-        
-        // מערך הבטחות לכל ניסיונות העדכון
-        const updatePromises = [];
-        
-        // ניסיון 1: PATCH למזהה ספציפי
-        updatePromises.push(
-          fetch(`/api/tasks/${currentTaskId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              TaskScore: evaluation.score,
-              DurationTask: durationTask,
-              CompletionDate: new Date().toISOString()
-            })
-          }).then(response => {
-            if (response.ok) {
-              console.log('Task updated successfully via PATCH to /api/tasks/[taskId]');
-              return true;
-            }
-            return false;
-          }).catch(error => {
-            console.error('Error updating task via PATCH to /api/tasks/[taskId]:', error);
-            return false;
-          })
-        );
-        
-        // ניסיון 2: PUT לנתיב הכללי
-        updatePromises.push(
-          fetch('/api/tasks', {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              taskId: currentTaskId,
-              TaskScore: evaluation.score,
-              DurationTask: durationTask,
-              CompletionDate: new Date().toISOString()
-            })
-          }).then(response => {
-            if (response.ok) {
-              console.log('Task updated successfully via PUT to /api/tasks');
-              return true;
-            }
-            return false;
-          }).catch(error => {
-            console.error('Error updating task via PUT to /api/tasks:', error);
-            return false;
-          })
-        );
-        
-        // ניסיון 3: עדכון רק משך הזמן
-        updatePromises.push(
-          fetch(`/api/tasks/${currentTaskId}/duration`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              duration: durationTask
-            })
-          }).then(response => {
-            if (response.ok) {
-              console.log('Task duration updated successfully via PATCH to /api/tasks/[taskId]/duration');
-              return true;
-            }
-            return false;
-          }).catch(error => {
-            console.error('Error updating task duration:', error);
-            return false;
-          })
-        );
-        
-        // המתנה לסיום כל ניסיונות העדכון
-        const results = await Promise.allSettled(updatePromises);
-        
-        // בדיקה אם לפחות אחד מהניסיונות הצליח
-        const anySuccess = results.some(result => result.status === 'fulfilled' && result.value === true);
-        
-        if (anySuccess) {
-          console.log('Task update succeeded through at least one method');
-        } else {
-          console.error('All task update attempts failed');
-        }
-        
-        // 6. עדכון ממשק המשתמש עם המשוב (תמיד מבוצע)
-        setFeedbackResults(evaluation);
-        setSocialMetrics(prev => ({
-          ...prev,
-          comments: prev.comments + 1
-        }));
-        
-        console.log('Comment submission complete!');
-      } catch (apiError) {
-        console.error('API error:', apiError);
-        
-        // עדיין נציג את התוצאות למשתמש גם אם ניסיון השמירה נכשל
-        setFeedbackResults(evaluation);
-        setSocialMetrics(prev => ({
-          ...prev,
-          comments: prev.comments + 1
-        }));
-        
-        setError('יש בעיה בשמירת התגובה, אך באפשרותך להמשיך בתהליך הלמידה');
+        setSocialMetrics(prev => ({ ...prev, comments: prev.comments + 1 }));
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
-      setError('An unexpected error occurred. Please try again.');
+      // Fallback to local evaluation...
     } finally {
       setIsSubmitting(false);
     }
@@ -930,58 +491,29 @@ export default function PostTask() {
 
   // Navigate to next task
   const navigateToNextTask = async () => {
-    if (taskId) {
-      try {
-        // Store the current task ID for the conversation task to reference
-        sessionStorage.setItem(`post_task_${topicName}_${level}`, taskId);
-        
-        // Get the post ID to pass to the next task
-        const postId = localStorage.getItem(`post_id_${taskId}`);
-        
-        // We don't need to save the post again here, as it was already saved
-        // when the user submitted their comment
-        
-        // Create a new task for the conversation
-        const token = getAuthToken();
-        if (token) {
-          try {
-            console.log('Creating conversation task');
-            
-            const createTaskResponse = await fetch('/api/tasks', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                TopicName: topicName,
-                Level: level,
-                TaskType: 'conversation',
-                StartDate: new Date().toISOString()
-              })
-            });
-            
-            if (createTaskResponse.ok) {
-              const taskData = await createTaskResponse.json();
-              const conversationTaskId = taskData.TaskId;
-              console.log('Conversation task created successfully with ID:', conversationTaskId);
-              
-              // Navigate to conversation task with the new task ID
-              router.push(`/topics/${topicName}/tasks/conversation?level=${level}&taskId=${conversationTaskId}&postId=${postId || ''}`);
-              return;
-            }
-          } catch (error) {
-            console.error('Error creating conversation task:', error);
-            // Continue with navigation without task ID
-          }
-        }
-      } catch (error) {
-        console.error('Error in navigateToNextTask:', error);
-        // Continue with navigation without extra parameters
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/tasks/create-conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          topicName, level, previousTaskId: taskId
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        router.push(`/topics/${topicName}/tasks/conversation?level=${level}&taskId=${data.taskId}`);
+        return;
       }
+    } catch (error) {
+      console.error('Error creating conversation task:', error);
     }
     
-    // Default navigation if any of the above fails
+    // Fallback
     router.push(`/topics/${topicName}/tasks/conversation?level=${level}`);
   };
 

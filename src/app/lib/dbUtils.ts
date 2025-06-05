@@ -1,4 +1,4 @@
-// apps/web/src/app/lib/dbUtils.ts
+// unity-voice-frontend/src/app/lib/dbUtils.ts
 import mysql from 'mysql2/promise';
 
 /**

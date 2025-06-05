@@ -1,7 +1,7 @@
 // צור קובץ חדש: unity-voice-frontend/src/app/api/comments/submit/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAuth } from '../auth/verifyAuth';
+import { verifyAuth } from '../../auth/verifyAuth';
 
 export async function POST(request: NextRequest) {
   console.group('POST /api/comments/submit (Frontend Proxy)');
@@ -75,10 +75,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body)
     });
 
-    console.log('🔄 Backend response status:', backendResponse.status); // ← הוסף את זה
-    
     const backendData = await backendResponse.json();
-    console.log('📊 Backend response data:', JSON.stringify(backendData, null, 2)); // ← הוסף את זה
     
     if (!backendResponse.ok) {
       console.error('Backend comment submission failed:', backendData);
@@ -89,7 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Comment submission successful - returning data to frontend');
+    console.log('Comment submission successful');
     console.groupEnd();
     
     return NextResponse.json(backendData);

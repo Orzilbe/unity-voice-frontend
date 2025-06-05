@@ -383,14 +383,33 @@ export default function QuizTask() {
     setIncorrectAnswers([]);
   };
 
-  const navigateToNextTask = () => {
-    const nextLevel = (parseInt(level) + 1).toString();
-    const hasMoreLevels = parseInt(level) < 3;
-    
-    if (hasMoreLevels) {
-      router.push(`/topics/${topicName}/tasks/flashcard?level=${nextLevel}`);
-    } else {
-      router.push(`/topics/${topicName}`);
+
+  const navigateToNextTask = async () => {
+    if ((correctAnswers.length / quizQuestions.length) < 0.6) return;
+  
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/quiz/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          taskId, topicName, level, finalScore: score,
+          duration: timer, correctAnswers: correctAnswers.length,
+          totalQuestions: quizQuestions.length
+        })
+      });
+  
+      if (response.ok) {
+        const result = await response.json();
+        router.push(`/topics/${topicName}/tasks/post?level=${level}&taskId=${result.newTaskId}`);
+      } else {
+        alert('שגיאה בסיום הבוחן. אנא נסה שוב.');
+      }
+    } catch (error) {
+      alert('שגיאה בסיום הבוחן. אנא נסה שוב.');
     }
   };
 

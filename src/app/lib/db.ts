@@ -1,4 +1,4 @@
-// apps/web/src/app/lib/db.ts
+// unity-voice-frontend/src/app/lib/db.ts
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
