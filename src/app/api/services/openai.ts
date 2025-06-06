@@ -145,7 +145,6 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
   // Add topic-specific guidance
   switch (topicName) {
     case "Society and Multiculturalism":
-    case "Society And Multiculturalism":
       return `${basePrompt}
         
         Focus on:
@@ -156,7 +155,6 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
         - Cross-cultural communication`;
         
     case "Diplomacy and International Relations":
-    case "Diplomacy And International Relations":
       return `${basePrompt}
         
         Focus on:
@@ -167,7 +165,6 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
         - Israeli diplomatic roles`;
         
     case "Economy and Entrepreneurship":
-    case "Economy And Entrepreneurship":
       return `${basePrompt}
         
         Focus on:
@@ -178,7 +175,6 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
         - Business development`;
         
     case "Environment and Sustainability":
-    case "Environment And Sustainability":
       return `${basePrompt}
         
         Focus on:
@@ -189,7 +185,7 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
         - Renewable energy`;
         
     case "Innovation and Technology":
-    case "Innovation And Technology":
+
       return `${basePrompt}
         
         Focus on:
@@ -200,7 +196,7 @@ function createPromptForTopic(topicName: string, englishLevel: string): string {
         - Israeli innovation ecosystem`;
         
     case "History and Heritage":
-    case "History And Heritage":
+
       return `${basePrompt}
         
         Focus on:

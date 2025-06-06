@@ -13,7 +13,12 @@ function formatTopicName(urlTopicName: string): string {
   // ההמרה - החלפת מקפים ברווחים והפיכת האות הראשונה של כל מילה לגדולה
   return urlTopicName
     .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => {
+      if (word.toLowerCase() === 'and') {
+        return 'and';
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
     .join(' ');
 }
 
