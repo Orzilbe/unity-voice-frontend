@@ -4,7 +4,7 @@
 
 /**
  * Convert a URL-style topic name (with hyphens) to database format (with spaces and capitalization)
- * Example: "holocaust-and-revival" -> "Holocaust And Revival"
+ * Example: "holocaust-and-revival" -> "Holocaust and Revival"
  * @param urlTopicName Topic name in URL format
  * @returns Topic name in database format
  */
@@ -16,13 +16,19 @@ export function formatTopicNameForDb(urlTopicName: string): string {
     
     return urlTopicName
       .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map((word, index, array) => {
+        // Keep "and" lowercase, capitalize other words
+        if (word.toLowerCase() === 'and') {
+          return 'and';
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
       .join(' ');
   }
   
   /**
    * Convert a database-style topic name (with spaces) to URL format (with hyphens)
-   * Example: "Holocaust And Revival" -> "holocaust-and-revival"
+   * Example: "Holocaust and Revival" -> "holocaust-and-revival"
    * @param dbTopicName Topic name in database format
    * @returns Topic name in URL format
    */

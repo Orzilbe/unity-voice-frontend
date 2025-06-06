@@ -598,7 +598,7 @@ useEffect(() => {
         },
         body: JSON.stringify({
           taskId: taskId,
-          TaskScore: 100, // Full score for completing all flashcards
+          TaskScore: 0, // Flashcard tasks always have score of 0
           DurationTask: durationTask,
           CompletionDate: new Date().toISOString()
         })
@@ -625,6 +625,13 @@ useEffect(() => {
     setIsLoading(true);
 
     try {
+      // First complete the current flashcard task
+      const taskCompleted = await completeFlashcardTask();
+      if (!taskCompleted) {
+        throw new Error('Failed to complete flashcard task');
+      }
+      console.log('✅ Successfully completed flashcard task');
+
       const token = getAuthToken();
       if (!token) {
         throw new Error('Authentication token is missing');

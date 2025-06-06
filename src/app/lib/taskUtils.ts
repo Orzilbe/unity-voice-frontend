@@ -273,11 +273,16 @@ try {
 * למשל: 'society-and-multiculturalism' -> 'Society and Multiculturalism'
 */
 export function formatTopicName(urlTopicName: string): string {
-// ההמרה - החלפת מקפים ברווחים והפיכת האות הראשונה של כל מילה לגדולה
-return urlTopicName
-  .split('-')
-  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-  .join(' ');
+  // ההמרה - החלפת מקפים ברווחים והפיכת האות הראשונה של כל מילה לגדולה
+  return urlTopicName
+    .split('-')
+    .map(word => {
+      if (word.toLowerCase() === 'and') {
+        return 'and';
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(' ');
 }
 
 /**
@@ -285,5 +290,5 @@ return urlTopicName
 * למשל: 'Society and Multiculturalism' -> 'society-and-multiculturalism'
 */
 export function formatTopicNameForUrl(dbTopicName: string): string {
-return dbTopicName.toLowerCase().replace(/\s+/g, '-');
+  return dbTopicName.toLowerCase().replace(/\s+/g, '-');
 }
