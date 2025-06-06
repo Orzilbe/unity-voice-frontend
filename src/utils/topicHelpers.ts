@@ -74,7 +74,12 @@ export const generateTopicWords = (topicName: string): string[] => {
 export const createFallbackPost = (topicName: string): string => {
   const cleanTopicName = topicName.replace(/-/g, ' ')
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => {
+      if (word.toLowerCase() === 'and') {
+        return 'and';
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
     .join(' ');
   
   return `Today I want to discuss ${cleanTopicName}, which is a fascinating aspect of Israeli society and culture.
