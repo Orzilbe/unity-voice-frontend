@@ -1,3 +1,4 @@
+// unity-voice-frontend/src/config/api.ts
 // API Configuration for Unity Voice Frontend
 // This file centralizes all API endpoint configurations
 
@@ -184,6 +185,7 @@ export const taskEndpoints = {
     TopicName: string;
     Level: number;
     TaskType: string;
+    StartDate?: string;
   }) => apiCall('/tasks', {
     method: 'POST',
     body: JSON.stringify(taskData),
@@ -197,10 +199,99 @@ export const taskEndpoints = {
   getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// Flashcard endpoints
+// 🔥 Flashcard endpoints - מתוקן לשימוש ב-endpoint הנכון
 export const flashcardEndpoints = {
-  getByTopicAndLevel: async (topic: string, level: number) => 
-    apiCall(`/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=7`),
+  // שימוש ב-endpoint החדש שמסנן מילים שנלמדו
+  getByTopicAndLevel: async (topic: string, level: number) => {
+    try {
+      console.log(`🚀 Fetching flashcards: topic="${topic}", level="${level}"`);
+      
+      // 🔥 שימוש ב-endpoint המתוקן: /flashcards/:topic/:level
+      const result = await apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`);
+      
+      // בדיקה אם התגובה במבנה הנכון
+      if (result && result.success) {
+        console.log(`✅ Received ${result.data.length} unlearned flashcards`);
+        return result.data;
+      } else if (Array.isArray(result)) {
+        // במקרה שהתגובה היא array ישירות
+        console.log(`✅ Received ${result.length} unlearned flashcards (direct array)`);
+        return result;
+      } else {
+        console.error('❌ Unexpected response format:', result);
+        throw new Error('Invalid response format from flashcards API');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching flashcards:', error);
+      throw error;
+    }
+  },
+
+  // יצירת flashcard חדש
+  create: async (flashcardData: {
+    Word: string;
+    Translation: string;
+    TopicName: string;
+    Level?: number;
+    ExampleUsage?: string;
+  }) => apiCall('/flashcards', {
+    method: 'POST',
+    body: JSON.stringify(flashcardData),
+  }),
+
+  // סימון מילה כנלמדה
+  markAsLearned: async (wordId: string, taskId: string, topicName?: string) => 
+    apiCall('/flashcards/mark-learned', {
+      method: 'POST',
+      body: JSON.stringify({
+        WordId: wordId,
+        TaskId: taskId,
+        TopicName: topicName
+      }),
+    }),
+};
+
+// Words endpoints (לתאימות אחורה ולמקרים מיוחדים)
+export const wordsEndpoints = {
+  // נתיב עם סינון מילים שנלמדו
+  getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
+    try {
+      console.log(`🚀 Fetching unlearned words: topic="${topic}", level="${level}"`);
+      
+      const result = await apiCall(
+        `/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=${randomLimit}&filterLearned=true`
+      );
+      
+      console.log(`✅ Received ${Array.isArray(result) ? result.length : 0} unlearned words`);
+      return result;
+    } catch (error) {
+      console.error('❌ Error fetching unlearned words:', error);
+      throw error;
+    }
+  },
+
+  // קבלת מילים שנלמדו
+  getLearned: async (topic?: string, level?: number) => {
+    const params = new URLSearchParams();
+    if (topic) params.append('topic', topic);
+    if (level) params.append('level', level.toString());
+    
+    return apiCall(`/words/learned?${params.toString()}`);
+  },
+
+  // קבלת מילים של משימה ספציפית
+  getInTask: async (taskId: string) => 
+    apiCall(`/words/in-task?taskId=${taskId}`),
+
+  // הוספת מילים למשימה
+  addToTask: async (taskId: string, wordIds: string[]) =>
+    apiCall('/words/to-task', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskId,
+        wordIds
+      }),
+    }),
 };
 
 export default {
@@ -212,4 +303,5 @@ export default {
   topics: topicsEndpoints,
   tasks: taskEndpoints,
   flashcards: flashcardEndpoints,
-}; 
+  words: wordsEndpoints,
+};
