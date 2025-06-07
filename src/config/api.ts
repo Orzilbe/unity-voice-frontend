@@ -1,5 +1,5 @@
-// unity-voice-frontend/src/config/api.ts - חלק מעודכן
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+// unity-voice-frontend/src/config/api.ts - גרסה עם debugging מלא
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 console.log('🔧 API Configuration:', {
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -16,6 +16,7 @@ async function handleResponse(response: Response) {
   if (contentType && contentType.includes('application/json')) {
     try {
       const data = await response.json();
+      console.log('✅ JSON parsed successfully:', data);
       
       if (!response.ok) {
         const errorObj = {
@@ -29,11 +30,9 @@ async function handleResponse(response: Response) {
         throw errorObj;
       }
       
-      // ✅ החזר את הנתונים - לא שגיאה!
       return data;
       
     } catch (jsonError) {
-      // רק אם response לא OK, אז זו שגיאה
       if (!response.ok) {
         const errorObj = {
           status: response.status,
@@ -46,14 +45,11 @@ async function handleResponse(response: Response) {
         throw errorObj;
       }
       
-      // ✅ אם response OK אבל JSON parsing נכשל, נסה להבין למה
       console.warn('⚠️ JSON parse failed on successful response:', jsonError);
       
-      // קבל את התוכן כטקסט במקום
       try {
         const text = await response.text();
         console.log('📄 Response as text:', text);
-        // נסה לפרסר שוב
         return JSON.parse(text);
       } catch (secondAttempt) {
         console.error('❌ Second parse attempt failed:', secondAttempt);
@@ -62,7 +58,6 @@ async function handleResponse(response: Response) {
     }
   }
   
-  // המשך הקוד כמו שהיה...
   try {
     const text = await response.text();
     console.log(`📄 Response text (first 200 chars): ${text.substring(0, 200)}`);
@@ -93,26 +88,23 @@ async function handleResponse(response: Response) {
   }
 }
 
-// ✅ פונקציה לקבלת טוקן
 function getAuthToken(): string | null {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    console.log('🔍 Getting auth token:', token ? 'Found' : 'Not found');
+    return token;
   }
   return null;
 }
 
-// ✅ פונקציה לשמירת טוקן גם בcookie
 function setTokenCookie(token: string) {
   if (typeof document !== 'undefined') {
-    // בדיקה אם אנחנו בproduction (HTTPS) או development (HTTP)
     const isProduction = window.location.protocol === 'https:';
     
     const cookieOptions = [
       `authToken=${token}`,
       'path=/',
-      // רק בproduction נשתמש בSecure ו-SameSite=None
       ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
-      // תוקף של 24 שעות
       `max-age=${24 * 60 * 60}`
     ];
     
@@ -124,20 +116,17 @@ function setTokenCookie(token: string) {
   }
 }
 
-// ✅ Main API call function - עודכן לתמיכה בcookies
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   if (!endpoint.startsWith('/')) {
     endpoint = '/' + endpoint;
   }
   
-  // ✅ הכן headers
   const token = getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...options.headers as Record<string, string>
   };
 
-  // ✅ הוסף Authorization header אם יש טוקן
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -145,17 +134,20 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   const fullUrl = `${API_URL}${endpoint}`;
   console.log(`🚀 Making API call to: ${fullUrl}`, {
     hasToken: !!token,
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    method: options.method || 'GET'
   });
 
   try {
     const response = await fetch(fullUrl, {
       ...options,
       headers,
-      credentials: 'include' // שליחת cookies
+      credentials: 'include'
     });
 
-    return await handleResponse(response);
+    const result = await handleResponse(response);
+    console.log(`✅ API call completed for ${endpoint}:`, result);
+    return result;
   } catch (error) {
     console.error(`💥 API call failed for ${endpoint}:`, {
       url: fullUrl,
@@ -184,19 +176,58 @@ export async function healthCheck() {
 // Authentication endpoints
 export const authEndpoints = {
   login: async (credentials: { email: string; password: string }) => {
-    const result = await apiCall('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
+    console.log('🔑 Starting login process...', { email: credentials.email });
     
-    // ✅ אם קיבלנו טוקן, נשמור אותו גם בcookie
-    if (result.token) {
-      localStorage.setItem('token', result.token);
-      setTokenCookie(result.token);
-      console.log('💾 Token saved to localStorage and cookie');
+    try {
+      const result = await apiCall('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+      
+      console.log('🔍 Raw login result:', result);
+      console.log('🔍 Result type:', typeof result);
+      console.log('🔍 Has token?', !!result?.token);
+      console.log('🔍 Has user?', !!result?.user);
+      console.log('🔍 Token preview:', result?.token ? result.token.substring(0, 20) + '...' : 'No token');
+      
+      // בדוק אם יש טוקן
+      if (result && result.token) {
+        console.log('💾 Saving token to localStorage...');
+        localStorage.setItem('token', result.token);
+        
+        console.log('🍪 Saving token to cookie...');
+        setTokenCookie(result.token);
+        
+        // בדוק שהטוקן נשמר
+        const savedToken = localStorage.getItem('token');
+        console.log('✅ Token verification after save:', savedToken ? 'SUCCESS' : 'FAILED');
+        
+        // החזר תוצאה עם success: true
+        const loginResponse = {
+          success: true,
+          token: result.token,
+          user: result.user || { email: credentials.email },
+          message: 'Login successful'
+        };
+        
+        console.log('🎉 Login response:', loginResponse);
+        return loginResponse;
+      } else {
+        console.log('❌ No token found in result');
+        return {
+          success: false,
+          message: 'No token received from server',
+          responseData: result
+        };
+      }
+    } catch (error) {
+      console.error('💥 Login error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Login failed',
+        error: error
+      };
     }
-    
-    return result;
   },
     
   register: async (userData: {
@@ -214,14 +245,30 @@ export const authEndpoints = {
       body: JSON.stringify(userData),
     }),
     
-  validate: async () =>
-    apiCall('/auth/validate', {
+  validate: async () => {
+    console.log('🔍 Validating token...');
+    const token = getAuthToken();
+    
+    if (!token) {
+      console.log('❌ No token found for validation');
+      return { success: false, message: 'No token found' };
+    }
+    
+    return apiCall('/auth/validate', {
       method: 'POST',
-      body: JSON.stringify({}),
-    }),
+      body: JSON.stringify({ token }),
+    });
+  },
     
   logout: async () => {
-    // מחיקת הcookie לפני הlogout
+    console.log('👋 Starting logout process...');
+    
+    // מחיקת localStorage
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    console.log('🗑️ Cleared localStorage');
+    
+    // מחיקת cookie
     if (typeof document !== 'undefined') {
       const isProduction = window.location.protocol === 'https:';
       const cookieOptions = [
@@ -232,16 +279,20 @@ export const authEndpoints = {
       ];
       
       document.cookie = cookieOptions.join('; ');
-      console.log('🍪 Token cookie cleared');
+      console.log('🍪 Cleared cookie');
     }
     
-    return apiCall('/auth/logout', {
-      method: 'POST',
-    });
+    try {
+      return await apiCall('/auth/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.log('⚠️ Logout API call failed, but local cleanup completed');
+      return { success: true, message: 'Logged out locally' };
+    }
   }
 };
 
-// המשך הקובץ נשאר כמו שהיה...
 // User endpoints
 export const userEndpoints = {
   getProfile: async () => apiCall('/user/profile'),
@@ -281,7 +332,7 @@ export const taskEndpoints = {
   getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// ✅ Flashcard endpoints
+// Flashcard endpoints
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
