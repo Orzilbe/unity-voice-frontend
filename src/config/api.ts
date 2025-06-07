@@ -75,31 +75,22 @@ async function handleResponse(response: Response) {
   }
 }
 
-// Main API call function
+// ✅ Main API call function - עודכן לשימוש עם cookies
 async function apiCall(endpoint: string, options: RequestInit = {}) {
-  // ✅ בדיקה אם אנחנו בסביבת דפדפן
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
-  // Prepare headers
+  // ✅ הסרנו את כל הטיפול בטוקנים
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
     ...options.headers
   };
 
   const fullUrl = `${API_URL}${endpoint}`;
   console.log(`Making API call to: ${fullUrl}`);
-  
-  // ✅ לוג לבדיקה
-  if (typeof window !== 'undefined') {
-    console.log('🔑 Token found:', !!token);
-    console.log('📤 Sending Authorization header:', !!headers.Authorization);
-  }
 
   try {
     const response = await fetch(fullUrl, {
       ...options,
-      headers
+      headers,
+      credentials: 'include' // ✅ הקטע החשוב - כולל cookies אוטומטית!
     });
 
     return await handleResponse(response);
@@ -122,17 +113,8 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   }
 }
 
-// Authenticated API call function that ensures a token is present
+// ✅ פונקציה פשוטה יותר - בלי בדיקות טוקן
 export async function authenticatedApiCall(endpoint: string, options: RequestInit = {}) {
-  // ✅ בדיקה אם אנחנו בסביבת דפדפן
-  if (typeof window === 'undefined') {
-    throw new Error('Authentication required: Running on server side');
-  }
-  
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new Error('Authentication required: No token found');
-  }
   return apiCall(endpoint, options);
 }
 
@@ -160,10 +142,10 @@ export const authEndpoints = {
       body: JSON.stringify(userData),
     }),
     
-  validate: async (token: string) => 
+  validate: async () => // ✅ הסרנו את הפרמטר token
     apiCall('/auth/validate', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({}),
     }),
     
   logout: async () => 
@@ -211,22 +193,18 @@ export const taskEndpoints = {
   getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// 🔥 Flashcard endpoints - מתוקן לשימוש ב-endpoint הנכון
+// ✅ Flashcard endpoints - כל הקריאות יכללו cookies אוטומטית
 export const flashcardEndpoints = {
-  // שימוש ב-endpoint החדש שמסנן מילים שנלמדו
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
       console.log(`🚀 Fetching flashcards: topic="${topic}", level="${level}"`);
       
-      // 🔥 שימוש ב-endpoint המתוקן: /flashcards/:topic/:level
       const result = await apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`);
       
-      // בדיקה אם התגובה במבנה הנכון
       if (result && result.success) {
         console.log(`✅ Received ${result.data.length} unlearned flashcards`);
         return result.data;
       } else if (Array.isArray(result)) {
-        // במקרה שהתגובה היא array ישירות
         console.log(`✅ Received ${result.length} unlearned flashcards (direct array)`);
         return result;
       } else {
@@ -239,7 +217,6 @@ export const flashcardEndpoints = {
     }
   },
 
-  // יצירת flashcard חדש
   create: async (flashcardData: {
     Word: string;
     Translation: string;
@@ -251,7 +228,6 @@ export const flashcardEndpoints = {
     body: JSON.stringify(flashcardData),
   }),
 
-  // סימון מילה כנלמדה
   markAsLearned: async (wordId: string, taskId: string, topicName?: string) => 
     apiCall('/flashcards/mark-learned', {
       method: 'POST',
@@ -265,7 +241,6 @@ export const flashcardEndpoints = {
 
 // Words endpoints (לתאימות אחורה ולמקרים מיוחדים)
 export const wordsEndpoints = {
-  // נתיב עם סינון מילים שנלמדו
   getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
     try {
       console.log(`🚀 Fetching unlearned words: topic="${topic}", level="${level}"`);
@@ -282,7 +257,6 @@ export const wordsEndpoints = {
     }
   },
 
-  // קבלת מילים שנלמדו
   getLearned: async (topic?: string, level?: number) => {
     const params = new URLSearchParams();
     if (topic) params.append('topic', topic);
@@ -291,11 +265,9 @@ export const wordsEndpoints = {
     return apiCall(`/words/learned?${params.toString()}`);
   },
 
-  // קבלת מילים של משימה ספציפית
   getInTask: async (taskId: string) => 
     apiCall(`/words/in-task?taskId=${taskId}`),
 
-  // הוספת מילים למשימה
   addToTask: async (taskId: string, wordIds: string[]) =>
     apiCall('/words/to-task', {
       method: 'POST',

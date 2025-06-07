@@ -1,7 +1,6 @@
 // unity-voice-frontend/src/hooks/useAuth.ts
 import { useState, useEffect, useCallback } from 'react';
 import { authEndpoints } from '../config/api';
-import { setAuthToken, setUserData, getAuthToken, clearAuthData } from '../utils/auth-cookies';
 
 interface User {
   id?: string;
@@ -58,33 +57,19 @@ export const useAuth = () => {
     notifyListeners(newState);
   }, []);
 
-  // Token validation
+  // ✅ Token validation - עודכן לעבודה עם cookies
   const validateAuth = useCallback(async () => {
     console.log('🔍 Starting auth validation...');
     
-    const token = getAuthToken();
-    if (!token) {
-      console.log('❌ No token found');
-      updateAuthState({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: null,
-        isInitialized: true
-      });
-      return false;
-    }
-
-    console.log('✅ Token found, validating...');
-
     try {
-      const data = await authEndpoints.validate(token);
+      // ✅ פשוט נקרא ל-validate ללא טוקן - ה-cookie יישלח אוטומטית
+      const data = await authEndpoints.validate();
       console.log('📡 Validation response:', data);
 
-      if (data.success || data.valid) {
+      if (data.valid || data.success) {
         let userData = data.user;
         
-        // Get stored user data if needed
+        // ✅ ננסה לקבל נתונים מ-localStorage כגיבוי
         if (!userData || (!userData.role && !userData.UserRole)) {
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
@@ -117,7 +102,8 @@ export const useAuth = () => {
         });
         return true;
       } else {
-        clearAuthData();
+        // ✅ אין צורך למחוק tokens - רק localStorage
+        localStorage.removeItem('user');
         updateAuthState({
           isAuthenticated: false,
           isLoading: false,
@@ -130,9 +116,9 @@ export const useAuth = () => {
     } catch (error) {
       console.error('Auth validation error:', error);
       
-      // Try localStorage fallback
+      // ✅ ננסה localStorage fallback
       const storedUser = localStorage.getItem('user');
-      if (storedUser && token) {
+      if (storedUser) {
         try {
           const userData = JSON.parse(storedUser);
           updateAuthState({
@@ -149,7 +135,7 @@ export const useAuth = () => {
       }
       
       // Clear auth if all fails
-      clearAuthData();
+      localStorage.removeItem('user');
       updateAuthState({
         isAuthenticated: false,
         isLoading: false,
@@ -166,6 +152,7 @@ export const useAuth = () => {
     validateAuth();
   }, [validateAuth]);
 
+  // ✅ Login - עודכן לעבודה עם cookies
   const login = async (email: string, password: string, rememberMe: boolean = true) => {
     try {
       console.log('🔐 Starting login process...');
@@ -174,7 +161,7 @@ export const useAuth = () => {
       const data = await authEndpoints.login({ email, password });
       console.log('📡 Login response:', data);
 
-      if (data.token) {
+      if (data.success) {
         const userData = data.user || { email };
         const normalizedUser = {
           ...userData,
@@ -182,9 +169,8 @@ export const useAuth = () => {
           UserRole: userData?.UserRole || userData?.role || 'user'
         };
         
-        // Save auth data
-        setAuthToken(data.token, rememberMe);
-        setUserData(normalizedUser);
+        // ✅ שמירה רק ב-localStorage לגיבוי (לא טוקן!)
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
         
         updateAuthState({
           isAuthenticated: true,
@@ -200,13 +186,13 @@ export const useAuth = () => {
           isAuthenticated: false,
           isLoading: false,
           user: null,
-          error: data.message || 'Login failed - No token received',
+          error: data.message || 'Login failed',
           isInitialized: true
         });
         
         return { 
           success: false, 
-          message: data.message || 'Login failed - No token received'
+          message: data.message || 'Login failed'
         };
       }
     } catch (error: any) {
@@ -247,9 +233,20 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
+  // ✅ Logout - עודכן לעבודה עם cookies
+  const logout = async () => {
     console.log('👋 Logging out...');
-    clearAuthData();
+    
+    try {
+      // ✅ קריאה לשרת למחיקת ה-cookie
+      await authEndpoints.logout();
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+      // ממשיכים עם logout גם אם הקריאה נכשלת
+    }
+    
+    // ✅ מחיקת נתונים מ-localStorage
+    localStorage.removeItem('user');
     
     updateAuthState({
       isAuthenticated: false,

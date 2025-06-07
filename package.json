@@ -13,6 +13,7 @@
   "dependencies": {
     "@azure/identity": "^3.3.0",
     "axios": "^1.8.4",
+    "cookie-parser": "^1.4.7",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.511.0",
     "mysql2": "^3.11.3",
@@ -26,6 +27,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^20.10.5",
     "@types/parse-json": "^4.0.2",

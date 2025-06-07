@@ -1,4 +1,4 @@
-// File: C:\Projects\root2\unity-voice-frontend\src\app\login\page.tsx
+// File: C:\Users\orzil\OneDrive\שולחן העבודה\070525\unity-voice-frontend-1\src\app\login\page.tsx
 import * as entry from '../../../../src/app/login/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
