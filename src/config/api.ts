@@ -301,7 +301,7 @@ export const userEndpoints = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  getData: async () => apiCall('/user/data'),
+  getData: async () => apiCall('/user-data'),
 };
 
 // Topics endpoints
