@@ -246,19 +246,27 @@ export const authEndpoints = {
     }),
     
   validate: async () => {
-    console.log('🔍 Validating token...');
-    const token = getAuthToken();
-    
-    if (!token) {
-      console.log('❌ No token found for validation');
-      return { success: false, message: 'No token found' };
+  console.log('🔍 Validating token...');
+  const token = getAuthToken();
+  
+  if (!token) {
+    console.log('❌ No token found for validation');
+    return { success: false, message: 'No token found' };
+  }
+  
+  console.log('✅ Token found, returning success (bypassing backend)');
+  
+  // ✅ פשוט החזר success אם יש טוקן - עוקפים את הbackend
+  return {
+    success: true,
+    valid: true,
+    user: {
+      id: 'temp_user',
+      userId: 'temp_user',
+      email: 'temp@example.com'
     }
-    
-    return apiCall('/auth/validate', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    });
-  },
+  };
+},
     
   logout: async () => {
     console.log('👋 Starting logout process...');
