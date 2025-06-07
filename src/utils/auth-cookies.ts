@@ -1,4 +1,4 @@
-// apps/web/src/utils/auth-cookies.ts
+// unity-voice-frontend/src/utils/auth-cookies.ts
 
 /**
  * Set authentication token in both localStorage and cookies
