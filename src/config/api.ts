@@ -1,4 +1,4 @@
-// unity-voice-frontend/src/config/api.ts
+// unity-voice-frontend/src/config/api.ts - חלק מעודכן
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 console.log('🔧 API Configuration:', {
@@ -76,7 +76,7 @@ async function handleResponse(response: Response) {
   }
 }
 
-// ✅ פונקציה לקבלת טוקן - תמיד מlocalStorage (פשוט יותר)
+// ✅ פונקציה לקבלת טוקן
 function getAuthToken(): string | null {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('token');
@@ -84,7 +84,30 @@ function getAuthToken(): string | null {
   return null;
 }
 
-// ✅ Main API call function - גישה היברידית
+// ✅ פונקציה לשמירת טוקן גם בcookie
+function setTokenCookie(token: string) {
+  if (typeof document !== 'undefined') {
+    // בדיקה אם אנחנו בproduction (HTTPS) או development (HTTP)
+    const isProduction = window.location.protocol === 'https:';
+    
+    const cookieOptions = [
+      `authToken=${token}`,
+      'path=/',
+      // רק בproduction נשתמש בSecure ו-SameSite=None
+      ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
+      // תוקף של 24 שעות
+      `max-age=${24 * 60 * 60}`
+    ];
+    
+    document.cookie = cookieOptions.join('; ');
+    console.log('🍪 Token set in cookie:', {
+      isProduction,
+      cookieString: cookieOptions.join('; ')
+    });
+  }
+}
+
+// ✅ Main API call function - עודכן לתמיכה בcookies
 async function apiCall(endpoint: string, options: RequestInit = {}) {
   if (!endpoint.startsWith('/')) {
     endpoint = '/' + endpoint;
@@ -112,7 +135,7 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
     const response = await fetch(fullUrl, {
       ...options,
       headers,
-      credentials: 'include' // עדיין כולל cookies לפיתוח מקומי
+      credentials: 'include' // שליחת cookies
     });
 
     return await handleResponse(response);
@@ -143,11 +166,21 @@ export async function healthCheck() {
 
 // Authentication endpoints
 export const authEndpoints = {
-  login: async (credentials: { email: string; password: string }) => 
-    apiCall('/auth/login', {
+  login: async (credentials: { email: string; password: string }) => {
+    const result = await apiCall('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
-    }),
+    });
+    
+    // ✅ אם קיבלנו טוקן, נשמור אותו גם בcookie
+    if (result.success && result.token) {
+      localStorage.setItem('token', result.token);
+      setTokenCookie(result.token);
+      console.log('💾 Token saved to localStorage and cookie');
+    }
+    
+    return result;
+  },
     
   register: async (userData: {
     email: string;
@@ -170,12 +203,28 @@ export const authEndpoints = {
       body: JSON.stringify({}),
     }),
     
-  logout: async () => 
-    apiCall('/auth/logout', {
+  logout: async () => {
+    // מחיקת הcookie לפני הlogout
+    if (typeof document !== 'undefined') {
+      const isProduction = window.location.protocol === 'https:';
+      const cookieOptions = [
+        'authToken=',
+        'path=/',
+        'expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax'])
+      ];
+      
+      document.cookie = cookieOptions.join('; ');
+      console.log('🍪 Token cookie cleared');
+    }
+    
+    return apiCall('/auth/logout', {
       method: 'POST',
-    })
+    });
+  }
 };
 
+// המשך הקובץ נשאר כמו שהיה...
 // User endpoints
 export const userEndpoints = {
   getProfile: async () => apiCall('/user/profile'),
