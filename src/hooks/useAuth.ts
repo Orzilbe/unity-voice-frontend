@@ -57,12 +57,30 @@ export const useAuth = () => {
     notifyListeners(newState);
   }, []);
 
-  // ✅ Token validation - עודכן לעבודה עם cookies
+  // ✅ Token validation - בדיקה ראשונה אם יש טוקן ב-localStorage
   const validateAuth = useCallback(async () => {
     console.log('🔍 Starting auth validation...');
     
     try {
-      // ✅ פשוט נקרא ל-validate ללא טוקן - ה-cookie יישלח אוטומטית
+      // ✅ בדיקה ראשונה - האם יש טוקן ב-localStorage
+      const localToken = localStorage.getItem('token');
+      console.log('🔍 Local token check:', localToken ? 'Found' : 'Missing');
+      
+      // אם אין טוקן בכלל, לא צריך לעשות קריאה לשרת
+      if (!localToken) {
+        console.log('❌ No token found in localStorage, setting as unauthenticated');
+        localStorage.removeItem('user');
+        updateAuthState({
+          isAuthenticated: false,
+          isLoading: false,
+          user: null,
+          error: null,
+          isInitialized: true
+        });
+        return false;
+      }
+
+      // אם יש טוקן, נבדוק אותו מול השרת
       const data = await authEndpoints.validate();
       console.log('📡 Validation response:', data);
 
@@ -102,8 +120,9 @@ export const useAuth = () => {
         });
         return true;
       } else {
-        // ✅ אין צורך למחוק tokens - רק localStorage
+        // ✅ טוקן לא תקף - נמחק הכל
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
         updateAuthState({
           isAuthenticated: false,
           isLoading: false,
@@ -116,11 +135,14 @@ export const useAuth = () => {
     } catch (error) {
       console.error('Auth validation error:', error);
       
-      // ✅ ננסה localStorage fallback
+      // ✅ ננסה localStorage fallback רק אם יש טוקן
+      const localToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
-      if (storedUser) {
+      
+      if (localToken && storedUser) {
         try {
           const userData = JSON.parse(storedUser);
+          console.log('🔄 Using localStorage fallback for auth');
           updateAuthState({
             isAuthenticated: true,
             isLoading: false,
@@ -136,6 +158,7 @@ export const useAuth = () => {
       
       // Clear auth if all fails
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
       updateAuthState({
         isAuthenticated: false,
         isLoading: false,
@@ -152,7 +175,7 @@ export const useAuth = () => {
     validateAuth();
   }, [validateAuth]);
 
-  // ✅ Login - עודכן לעבודה עם cookies
+  // ✅ Login - עודכן לשמירת טוקן ב-localStorage
   const login = async (email: string, password: string, rememberMe: boolean = true) => {
     try {
       console.log('🔐 Starting login process...');
@@ -169,8 +192,19 @@ export const useAuth = () => {
           UserRole: userData?.UserRole || userData?.role || 'user'
         };
         
-        // ✅ שמירה רק ב-localStorage לגיבוי (לא טוקן!)
+        // ✅ שמירה ב-localStorage - גם user וגם token!
         localStorage.setItem('user', JSON.stringify(normalizedUser));
+        
+        // ✅ שמירת הטוקן אם קיים בתגובה
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+          console.log('💾 Token saved to localStorage');
+        } else if (data.authToken) {
+          localStorage.setItem('token', data.authToken);
+          console.log('💾 AuthToken saved to localStorage');
+        } else {
+          console.warn('⚠️ No token received from server - relying on cookies');
+        }
         
         updateAuthState({
           isAuthenticated: true,
@@ -233,7 +267,7 @@ export const useAuth = () => {
     }
   };
 
-  // ✅ Logout - עודכן לעבודה עם cookies
+  // ✅ Logout - מחיקה מלאה של הנתונים
   const logout = async () => {
     console.log('👋 Logging out...');
     
@@ -247,6 +281,7 @@ export const useAuth = () => {
     
     // ✅ מחיקת נתונים מ-localStorage
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     
     updateAuthState({
       isAuthenticated: false,
