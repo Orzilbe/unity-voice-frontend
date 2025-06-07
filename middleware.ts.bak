@@ -1,37 +1,51 @@
-// apps/web/src/middleware.ts
+// unity-voice-frontend/src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Get the token from cookies or localStorage
-  const token = request.cookies.get('auth_token')?.value || 
-                request.headers.get('authorization')?.split(' ')[1];
-
+  // Get token from cookies
+  const token = request.cookies.get('auth_token')?.value;
+  
   // Define protected and auth routes
-  const protectedRoutes = ['/topics', '/profile', '/dashboard'];
+  const protectedRoutes = ['/topics', '/profile', '/dashboard', '/hall-of-fame'];
   const authRoutes = ['/login', '/signup'];
-
-  // Check if the current path is a protected route
+  
+  const pathname = request.nextUrl.pathname;
+  
+  // Check if current path is protected
   const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
+    pathname.startsWith(route)
   );
-
+  
   const isAuthRoute = authRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
+    pathname.startsWith(route)
   );
-
-  // If no token exists and trying to access a protected route, redirect to login
+  
+  // If no token and trying to access protected route, redirect to login
   if (isProtectedRoute && !token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    const url = new URL('/login', request.url);
+    url.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(url);
   }
-
-  // If logged in and trying to access login/signup, redirect to topics
+  
+  // If has token and trying to access auth routes, redirect to topics
   if (isAuthRoute && token) {
     return NextResponse.redirect(new URL('/topics', request.url));
   }
-
+  
   return NextResponse.next();
 }
+
 export const config = {
-  matcher: ['/topics/:path*', '/login', '/signup', '/profile', '/((?!_next/static|_next/image|favicon.ico).*)', '/api/:path*']
-}
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+  ]
+};
