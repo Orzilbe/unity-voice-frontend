@@ -1,4 +1,4 @@
-// unity-voice-frontend/src/config/api.ts - גרסה עם debugging מלא
+// unity-voice-frontend/src/config/api.ts - גרסה סופית מתוקנת
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 console.log('🔧 API Configuration:', {
@@ -179,7 +179,7 @@ export const authEndpoints = {
     console.log('🔑 Starting login process...', { email: credentials.email });
     
     try {
-      const result = await apiCall('/auth/login', {
+      const result = await apiCall('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
@@ -240,33 +240,33 @@ export const authEndpoints = {
     ageRange?: string;
     [key: string]: unknown;
   }) => 
-    apiCall('/auth/register', {
+    apiCall('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     }),
     
   validate: async () => {
-  console.log('🔍 Validating token...');
-  const token = getAuthToken();
-  
-  if (!token) {
-    console.log('❌ No token found for validation');
-    return { success: false, message: 'No token found' };
-  }
-  
-  console.log('✅ Token found, returning success (bypassing backend)');
-  
-  // ✅ פשוט החזר success אם יש טוקן - עוקפים את הbackend
-  return {
-    success: true,
-    valid: true,
-    user: {
-      id: 'temp_user',
-      userId: 'temp_user',
-      email: 'temp@example.com'
+    console.log('🔍 Validating token...');
+    const token = getAuthToken();
+    
+    if (!token) {
+      console.log('❌ No token found for validation');
+      return { success: false, message: 'No token found' };
     }
-  };
-},
+    
+    console.log('✅ Token found, returning success (bypassing backend)');
+    
+    // ✅ פשוט החזר success אם יש טוקן - עוקפים את הbackend
+    return {
+      success: true,
+      valid: true,
+      user: {
+        id: 'temp_user',
+        userId: 'temp_user',
+        email: 'temp@example.com'
+      }
+    };
+  },
     
   logout: async () => {
     console.log('👋 Starting logout process...');
@@ -291,7 +291,7 @@ export const authEndpoints = {
     }
     
     try {
-      return await apiCall('/auth/logout', {
+      return await apiCall('/api/auth/logout', {
         method: 'POST',
       });
     } catch (error) {
@@ -301,25 +301,25 @@ export const authEndpoints = {
   }
 };
 
-// User endpoints
+// User endpoints - ✅ תוקן עם /api
 export const userEndpoints = {
-  getProfile: async () => apiCall('/user/profile'),
+  getProfile: async () => apiCall('/api/user/profile'),
   updateProfile: async (data: unknown) => 
-    apiCall('/user/profile', {
+    apiCall('/api/user/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  getData: async () => apiCall('/user-data'),
+  getData: async () => apiCall('/api/user/data'),
 };
 
-// Topics endpoints
+// Topics endpoints - ✅ תוקן עם /api
 export const topicsEndpoints = {
-  getAll: async () => apiCall('/topics'),
-  getById: async (id: string) => apiCall(`/topics/${id}`),
-  getUserProgress: async () => apiCall('/topics/progress'),
+  getAll: async () => apiCall('/api/topics'),
+  getById: async (id: string) => apiCall(`/api/topics/${id}`),
+  getUserProgress: async () => apiCall('/api/topics/progress'),
 };
 
-// Task endpoints  
+// Task endpoints - ✅ תוקן עם /api
 export const taskEndpoints = {
   create: async (taskData: {
     UserId: string;
@@ -327,26 +327,26 @@ export const taskEndpoints = {
     Level: number;
     TaskType: string;
     StartDate?: string;
-  }) => apiCall('/tasks', {
+  }) => apiCall('/api/tasks', {
     method: 'POST',
     body: JSON.stringify(taskData),
   }),
-  getById: async (taskId: string) => apiCall(`/tasks/${taskId}`),
+  getById: async (taskId: string) => apiCall(`/api/tasks/${taskId}`),
   update: async (taskId: string, updateData: unknown) => 
-    apiCall(`/tasks/${taskId}`, {
+    apiCall(`/api/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(updateData),
     }),
-  getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
+  getUserTasks: async (userId: string) => apiCall(`/api/tasks/user/${userId}`),
 };
 
-// Flashcard endpoints
+// Flashcard endpoints - ✅ תוקן עם /api
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
       console.log(`🚀 Fetching flashcards: topic="${topic}", level="${level}"`);
       
-      const result = await apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`);
+      const result = await apiCall(`/api/flashcards/${encodeURIComponent(topic)}/${level}`);
       
       if (result && result.success) {
         console.log(`✅ Received ${result.data.length} flashcards`);
@@ -370,13 +370,13 @@ export const flashcardEndpoints = {
     TopicName: string;
     Level?: number;
     ExampleUsage?: string;
-  }) => apiCall('/flashcards', {
+  }) => apiCall('/api/flashcards', {
     method: 'POST',
     body: JSON.stringify(flashcardData),
   }),
 
   markAsLearned: async (wordId: string, taskId: string, topicName?: string) => 
-    apiCall('/flashcards/mark-learned', {
+    apiCall('/api/flashcards/mark-learned', {
       method: 'POST',
       body: JSON.stringify({
         WordId: wordId,
@@ -386,14 +386,14 @@ export const flashcardEndpoints = {
     }),
 };
 
-// Words endpoints
+// Words endpoints - ✅ תוקן עם /api
 export const wordsEndpoints = {
   getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
     try {
       console.log(`🚀 Fetching unlearned words: topic="${topic}", level="${level}"`);
       
       const result = await apiCall(
-        `/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=${randomLimit}&filterLearned=true`
+        `/api/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=${randomLimit}&filterLearned=true`
       );
       
       console.log(`✅ Received ${Array.isArray(result) ? result.length : 0} unlearned words`);
@@ -409,14 +409,14 @@ export const wordsEndpoints = {
     if (topic) params.append('topic', topic);
     if (level) params.append('level', level.toString());
     
-    return apiCall(`/words/learned?${params.toString()}`);
+    return apiCall(`/api/words/learned?${params.toString()}`);
   },
 
   getInTask: async (taskId: string) => 
-    apiCall(`/words/in-task?taskId=${taskId}`),
+    apiCall(`/api/words/in-task?taskId=${taskId}`),
 
   addToTask: async (taskId: string, wordIds: string[]) =>
-    apiCall('/words/to-task', {
+    apiCall('/api/words/to-task', {
       method: 'POST',
       body: JSON.stringify({
         taskId,
