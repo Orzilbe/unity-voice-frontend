@@ -1,4 +1,4 @@
-// unity-voice-frontend/src/config/api.ts - גרסה מתוקנת עם טוכן אחיד
+// unity-voice-frontend/src/config/api.ts - גרסה מתוקנת שתעבוד
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 console.log('🔧 API Configuration:', {
@@ -88,7 +88,7 @@ async function handleResponse(response: Response) {
   }
 }
 
-// 🔧 פונקציה מאוחדת לקבלת טוכן
+// 🔧 פונקציה לקבלת טוכן - תחפש במקומות שונים
 function getAuthToken(): string | null {
   if (typeof window !== 'undefined') {
     // 🔑 קודם כל נסה localStorage עם 'token'
@@ -98,13 +98,10 @@ function getAuthToken(): string | null {
       return token;
     }
     
-    // אם לא מצאנו, נסה גם עם 'auth_token' (לתאימות אחורה)
+    // אם לא מצאנו, נסה גם עם 'auth_token' 
     token = localStorage.getItem('auth_token');
     if (token) {
       console.log('🔍 Getting auth token: Found in localStorage (auth_token)');
-      // העבר לשם החדש
-      localStorage.setItem('token', token);
-      localStorage.removeItem('auth_token');
       return token;
     }
     
@@ -212,10 +209,10 @@ export const authEndpoints = {
       console.log('🔍 Has user?', !!result?.user);
       console.log('🔍 Token preview:', result?.token ? result.token.substring(0, 20) + '...' : 'No token');
       
-      // בדוק אם יש טוקן
+      // בדוק אם יש טוכן ושמור אותו
       if (result && result.token) {
         console.log('💾 Saving token to localStorage...');
-        localStorage.setItem('token', result.token); // 🔑 שמור תחת 'token'
+        localStorage.setItem('token', result.token);
         
         console.log('🍪 Saving token to cookie...');
         setTokenCookie(result.token);
@@ -224,16 +221,13 @@ export const authEndpoints = {
         const savedToken = localStorage.getItem('token');
         console.log('✅ Token verification after save:', savedToken ? 'SUCCESS' : 'FAILED');
         
-        // החזר תוצאה עם success: true
-        const loginResponse = {
-          success: true,
-          token: result.token,
-          user: result.user || { email: credentials.email },
-          message: 'Login successful'
-        };
+        // שמור גם משתמש אם יש
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+          console.log('👤 User saved to localStorage');
+        }
         
-        console.log('🎉 Login response:', loginResponse);
-        return loginResponse;
+        return result; // החזר את התוצאה המקורית מהשרת
       } else {
         console.log('❌ No token found in result');
         return {
@@ -276,7 +270,6 @@ export const authEndpoints = {
       return { success: false, message: 'No token found' };
     }
     
-    // 🔧 נסה לבדוק עם הbackend אם הטוכן תקין
     try {
       const result = await apiCall('/auth/validate', {
         method: 'POST',
@@ -300,7 +293,7 @@ export const authEndpoints = {
     
     // מחיקת localStorage
     localStorage.removeItem('token');
-    localStorage.removeItem('auth_token'); // גם הישן
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     console.log('🗑️ Cleared localStorage');
     
@@ -329,7 +322,7 @@ export const authEndpoints = {
   }
 };
 
-// שאר הendpoints נשארים אותו דבר...
+// שאר הendpoints
 export const userEndpoints = {
   getProfile: async () => apiCall('/user/profile'),
   updateProfile: async (data: unknown) => 
