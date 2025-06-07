@@ -77,7 +77,8 @@ async function handleResponse(response: Response) {
 
 // Main API call function
 async function apiCall(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('token');
+  // ✅ בדיקה אם אנחנו בסביבת דפדפן
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   
   // Prepare headers
   const headers = {
@@ -88,6 +89,12 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
 
   const fullUrl = `${API_URL}${endpoint}`;
   console.log(`Making API call to: ${fullUrl}`);
+  
+  // ✅ לוג לבדיקה
+  if (typeof window !== 'undefined') {
+    console.log('🔑 Token found:', !!token);
+    console.log('📤 Sending Authorization header:', !!headers.Authorization);
+  }
 
   try {
     const response = await fetch(fullUrl, {
@@ -117,6 +124,11 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
 
 // Authenticated API call function that ensures a token is present
 export async function authenticatedApiCall(endpoint: string, options: RequestInit = {}) {
+  // ✅ בדיקה אם אנחנו בסביבת דפדפן
+  if (typeof window === 'undefined') {
+    throw new Error('Authentication required: Running on server side');
+  }
+  
   const token = localStorage.getItem('token');
   if (!token) {
     throw new Error('Authentication required: No token found');
