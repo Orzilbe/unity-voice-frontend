@@ -13,7 +13,7 @@ interface User {
   [key: string]: unknown;
 }
 
-interface LoginResponse {
+interface LoginResult {
   success: boolean;
   token?: string;
   message?: string;
@@ -28,9 +28,9 @@ interface AuthState {
   isInitialized: boolean;
 }
 
-// Create a singleton instance to share state across components
-let authStateListeners: ((state: AuthState) => void)[] = [];
-let currentAuthState: AuthState = {
+// Singleton to broadcast auth state
+let listeners: Array<(state: AuthState) => void> = [];
+let globalState: AuthState = {
   isAuthenticated: false,
   isLoading: true,
   user: null,
@@ -38,313 +38,79 @@ let currentAuthState: AuthState = {
   isInitialized: false
 };
 
-const notifyListeners = (newState: AuthState) => {
-  currentAuthState = newState;
-  authStateListeners.forEach(listener => listener(newState));
+const notify = (state: AuthState) => {
+  globalState = state;
+  listeners.forEach(cb => cb(state));
 };
 
 export const useAuth = () => {
-  const [authState, setAuthState] = useState<AuthState>(currentAuthState);
+  const [authState, setAuthState] = useState(globalState);
 
-  // Subscribe to auth state changes
+  // Subscribe on mount
   useEffect(() => {
-    const updateState = (newState: AuthState) => {
-      setAuthState(newState);
-    };
-    
-    authStateListeners.push(updateState);
-    
-    return () => {
-      authStateListeners = authStateListeners.filter(listener => listener !== updateState);
-    };
+    const cb = (s: AuthState) => setAuthState(s);
+    listeners.push(cb);
+    return () => { listeners = listeners.filter(fn => fn !== cb); };
   }, []);
 
   const updateAuthState = useCallback((newState: AuthState) => {
-    setAuthState(newState);
-    notifyListeners(newState);
+    notify(newState);
   }, []);
 
-  // ✅ Token validation - בדיקה ראשונה אם יש טוקן ב-localStorage
+  // Validate token on startup
   const validateAuth = useCallback(async () => {
-    console.log('🔍 Starting auth validation...');
-    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: null, isInitialized: true });
+      return;
+    }
     try {
-      // ✅ בדיקה ראשונה - האם יש טוקן ב-localStorage
-      const localToken = localStorage.getItem('token');
-      console.log('🔍 Local token check:', localToken ? 'Found' : 'Missing');
-      
-      // אם אין טוקן בכלל, לא צריך לעשות קריאה לשרת
-      if (!localToken) {
-        console.log('❌ No token found in localStorage, setting as unauthenticated');
-        localStorage.removeItem('user');
-        updateAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: null,
-          isInitialized: true
-        });
-        return false;
-      }
-
-      // אם יש טוקן, נבדוק אותו מול השרת
       const data = await authEndpoints.validate();
-      console.log('📡 Validation response:', data);
-
-      if (data.valid || data.success) {
-        let userData = data.user;
-        
-        // ✅ ננסה לקבל נתונים מ-localStorage כגיבוי
-        if (!userData || (!userData.role && !userData.UserRole)) {
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            try {
-              userData = {
-                ...JSON.parse(storedUser),
-                ...userData
-              };
-            } catch (e) {
-              console.error('Error parsing stored user data:', e);
-            }
-          }
-        }
-
-        // Normalize user data
-        if (userData) {
-          userData = {
-            ...userData,
-            role: userData.role || userData.UserRole || 'user',
-            UserRole: userData.UserRole || userData.role || 'user'
-          };
-        }
-
-        updateAuthState({
-          isAuthenticated: true,
-          isLoading: false,
-          user: userData,
-          error: null,
-          isInitialized: true
-        });
-        return true;
+      if (data.success) {
+        const user = data.user || JSON.parse(localStorage.getItem('user') || 'null');
+        localStorage.setItem('user', JSON.stringify(user));
+        updateAuthState({ isAuthenticated: true, isLoading: false, user, error: null, isInitialized: true });
       } else {
-        // ✅ טוקן לא תקף - נמחק הכל
-        localStorage.removeItem('user');
         localStorage.removeItem('token');
-        updateAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: data.message || 'Authentication failed',
-          isInitialized: true
-        });
-        return false;
+        localStorage.removeItem('user');
+        updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: data.message, isInitialized: true });
       }
-    } catch (error) {
-      console.error('Auth validation error:', error);
-      
-      // ✅ ננסה localStorage fallback רק אם יש טוקן
-      const localToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      
-      if (localToken && storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          console.log('🔄 Using localStorage fallback for auth');
-          updateAuthState({
-            isAuthenticated: true,
-            isLoading: false,
-            user: userData,
-            error: null,
-            isInitialized: true
-          });
-          return true;
-        } catch (e) {
-          console.error('Error parsing stored user data:', e);
-        }
-      }
-      
-      // Clear auth if all fails
-      localStorage.removeItem('user');
+    } catch (_) {
       localStorage.removeItem('token');
-      updateAuthState({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: error instanceof Error ? error.message : 'Authentication error',
-        isInitialized: true
-      });
-      return false;
+      localStorage.removeItem('user');
+      updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: 'Validation error', isInitialized: true });
     }
   }, [updateAuthState]);
 
-  // Initialize auth state
-  useEffect(() => {
-    validateAuth();
-  }, [validateAuth]);
+  useEffect(() => { validateAuth(); }, [validateAuth]);
 
-  // ✅ Login - עודכן לשמירת טוקן ב-localStorage
-  const login = async (email: string, password: string, rememberMe: boolean = true) => {
+  // Login: store token, set user and update state immediately
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    updateAuthState({ ...globalState, isLoading: true });
     try {
-      console.log('🔐 Starting login process...');
-      updateAuthState({ ...authState, isLoading: true });
-      
       const data = await authEndpoints.login({ email, password });
-      console.log('📡 Login response:', data);
-
-      if (data.success) {
-        const userData = data.user || { email };
-        const normalizedUser = {
-          ...userData,
-          role: userData?.role || userData?.UserRole || 'user',
-          UserRole: userData?.UserRole || userData?.role || 'user'
-        };
-        
-        // ✅ שמירה ב-localStorage - גם user וגם token!
-        localStorage.setItem('user', JSON.stringify(normalizedUser));
-        
-        // ✅ שמירת הטוקן אם קיים בתגובה
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-          console.log('💾 Token saved to localStorage');
-          
-          // שמירה גם בcookie לשרת
-          if (typeof document !== 'undefined') {
-            const isProduction = window.location.protocol === 'https:';
-            const cookieOptions = [
-              `authToken=${data.token}`,
-              'path=/',
-              ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
-              `max-age=${24 * 60 * 60}`
-            ];
-            document.cookie = cookieOptions.join('; ');
-            console.log('🍪 Token also saved to cookie for server');
-          }
-        } else if (data.authToken) {
-          localStorage.setItem('token', data.authToken);
-          console.log('💾 AuthToken saved to localStorage');
-          
-          // שמירה גם בcookie לשרת
-          if (typeof document !== 'undefined') {
-            const isProduction = window.location.protocol === 'https:';
-            const cookieOptions = [
-              `authToken=${data.authToken}`,
-              'path=/',
-              ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
-              `max-age=${24 * 60 * 60}`
-            ];
-            document.cookie = cookieOptions.join('; ');
-            console.log('🍪 AuthToken also saved to cookie for server');
-          }
-        } else {
-          console.warn('⚠️ No token received from server - relying on cookies');
-        }
-        
-        updateAuthState({
-          isAuthenticated: true,
-          isLoading: false,
-          user: normalizedUser,
-          error: null,
-          isInitialized: true
-        });
-        
-        return { 
-          success: true,
-          token: data.token || data.authToken 
-        };
-      } else {
-        updateAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: data.message || 'Login failed',
-          isInitialized: true
-        });
-        
-        return { 
-          success: false, 
-          message: data.message || 'Login failed'
-        };
+      if (data.success && data.token) {
+        localStorage.setItem('token', data.token);
+        const user = data.user || { email };
+        localStorage.setItem('user', JSON.stringify(user));
+        updateAuthState({ isAuthenticated: true, isLoading: false, user, error: null, isInitialized: true });
+        return { success: true, token: data.token };
       }
-    } catch (error: any) {
-      console.error('❌ Login error:', error);
-      
-      // Check if this is an API error with responseData
-      if (error.responseData) {
-        const errorMessage = error.responseData.message || error.message || 'Login failed';
-        console.log('API Error details:', error.responseData);
-        
-        updateAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-          error: errorMessage,
-          isInitialized: true
-        });
-        
-        return { 
-          success: false, 
-          message: errorMessage,
-          details: error.responseData.details 
-        };
-      }
-      
-      // Regular error handling
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      
-      updateAuthState({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-        error: errorMessage,
-        isInitialized: true
-      });
-      
-      return { success: false, message: errorMessage };
+      updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: data.message || 'Login failed', isInitialized: true });
+      return { success: false, message: data.message };
+    } catch (e: any) {
+      updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: e.message, isInitialized: true });
+      return { success: false, message: e.message };
     }
   };
 
-  // ✅ Logout - מחיקה מלאה של הנתונים
+  // Logout: clear storage and state
   const logout = async () => {
-    console.log('👋 Logging out...');
-    
-    try {
-      // ✅ קריאה לשרת למחיקת ה-cookie
-      await authEndpoints.logout();
-    } catch (error) {
-      console.error('Logout API call failed:', error);
-      // ממשיכים עם logout גם אם הקריאה נכשלת
-    }
-    
-    // ✅ מחיקת נתונים מ-localStorage וcookies
-    localStorage.removeItem('user');
+    try { await authEndpoints.logout(); } catch {};
     localStorage.removeItem('token');
-    
-    // מחיקת הcookie
-    if (typeof document !== 'undefined') {
-      const isProduction = window.location.protocol === 'https:';
-      const cookieOptions = [
-        'authToken=',
-        'path=/',
-        'expires=Thu, 01 Jan 1970 00:00:00 GMT',
-        ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax'])
-      ];
-      document.cookie = cookieOptions.join('; ');
-      console.log('🍪 Auth cookie cleared from client');
-    }
-    
-    updateAuthState({
-      isAuthenticated: false,
-      isLoading: false,
-      user: null,
-      error: null,
-      isInitialized: true
-    });
+    localStorage.removeItem('user');
+    updateAuthState({ isAuthenticated: false, isLoading: false, user: null, error: null, isInitialized: true });
   };
 
-  return {
-    ...authState,
-    login,
-    logout,
-    validateAuth
-  };
+  return { ...authState, login, logout, validateAuth };
 };
