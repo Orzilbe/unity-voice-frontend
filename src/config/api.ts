@@ -289,3 +289,7 @@ export default {
   flashcards: flashcardEndpoints,
   words: wordsEndpoints,
 };
+export const debugEndpoints = {
+  cookies: async () => apiCall('/auth/debug/cookies'),
+  auth: async () => apiCall('/api/debug/auth')
+};
