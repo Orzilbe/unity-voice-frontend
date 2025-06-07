@@ -1,15 +1,17 @@
 // unity-voice-frontend/src/config/api.ts
-// API Configuration for Unity Voice Frontend
-// This file centralizes all API endpoint configurations
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-// Get the API URL from environment variables
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+console.log('🔧 API Configuration:', {
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  API_URL: API_URL,
+  NODE_ENV: process.env.NODE_ENV
+});
 
 // Helper function to handle API responses
 async function handleResponse(response: Response) {
   const contentType = response.headers.get('content-type');
   
-  console.log(`Response status: ${response.status}, Content-Type: ${contentType}`);
+  console.log(`📡 Response: ${response.status} ${response.statusText}, Content-Type: ${contentType}`);
   
   if (contentType && contentType.includes('application/json')) {
     try {
@@ -23,7 +25,7 @@ async function handleResponse(response: Response) {
           responseData: data,
           url: response.url
         };
-        console.error('API Error (JSON):', errorObj);
+        console.error('❌ API Error (JSON):', errorObj);
         throw errorObj;
       }
       
@@ -37,17 +39,16 @@ async function handleResponse(response: Response) {
           responseData: null,
           url: response.url
         };
-        console.error('API Error (JSON Parse Failed):', errorObj);
+        console.error('❌ API Error (JSON Parse Failed):', errorObj);
         throw errorObj;
       }
       throw jsonError;
     }
   }
   
-  // Handle non-JSON responses
   try {
     const text = await response.text();
-    console.log(`Response text (first 200 chars): ${text.substring(0, 200)}`);
+    console.log(`📄 Response text (first 200 chars): ${text.substring(0, 200)}`);
     
     if (!response.ok) {
       const errorObj = {
@@ -57,7 +58,7 @@ async function handleResponse(response: Response) {
         responseData: text,
         url: response.url
       };
-      console.error('API Error (Text):', errorObj);
+      console.error('❌ API Error (Text):', errorObj);
       throw errorObj;
     }
     
@@ -70,40 +71,59 @@ async function handleResponse(response: Response) {
       responseData: null,
       url: response.url
     };
-    console.error('API Error (Text Read Failed):', errorObj);
+    console.error('❌ API Error (Text Read Failed):', errorObj);
     throw errorObj;
   }
 }
 
-// ✅ Main API call function - עודכן לשימוש עם cookies
+// ✅ פונקציה לקבלת טוקן - תמיד מlocalStorage (פשוט יותר)
+function getAuthToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('token');
+  }
+  return null;
+}
+
+// ✅ Main API call function - גישה היברידית
 async function apiCall(endpoint: string, options: RequestInit = {}) {
-  // ✅ הסרנו את כל הטיפול בטוקנים
-  const headers = {
+  if (!endpoint.startsWith('/')) {
+    endpoint = '/' + endpoint;
+  }
+  
+  // ✅ הכן headers
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers
+    ...options.headers as Record<string, string>
   };
 
+  // ✅ הוסף Authorization header אם יש טוקן
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const fullUrl = `${API_URL}${endpoint}`;
-  console.log(`Making API call to: ${fullUrl}`);
+  console.log(`🚀 Making API call to: ${fullUrl}`, {
+    hasToken: !!token,
+    environment: process.env.NODE_ENV
+  });
 
   try {
     const response = await fetch(fullUrl, {
       ...options,
       headers,
-      credentials: 'include' // ✅ הקטע החשוב - כולל cookies אוטומטית!
+      credentials: 'include' // עדיין כולל cookies לפיתוח מקומי
     });
 
     return await handleResponse(response);
   } catch (error) {
-    console.error(`API call failed for ${endpoint}:`, {
+    console.error(`💥 API call failed for ${endpoint}:`, {
       url: fullUrl,
       error: error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorStack: error instanceof Error ? error.stack : undefined,
       headers: headers
     });
     
-    // Enhance the error object with more context
     if (error && typeof error === 'object') {
       (error as any).endpoint = endpoint;
       (error as any).fullUrl = fullUrl;
@@ -113,12 +133,10 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   }
 }
 
-// ✅ פונקציה פשוטה יותר - בלי בדיקות טוקן
 export async function authenticatedApiCall(endpoint: string, options: RequestInit = {}) {
   return apiCall(endpoint, options);
 }
 
-// Health check endpoint
 export async function healthCheck() {
   return apiCall('/health');
 }
@@ -134,7 +152,11 @@ export const authEndpoints = {
   register: async (userData: {
     email: string;
     password: string;
-    name?: string;
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    englishLevel?: string;
+    ageRange?: string;
     [key: string]: unknown;
   }) => 
     apiCall('/auth/register', {
@@ -142,7 +164,7 @@ export const authEndpoints = {
       body: JSON.stringify(userData),
     }),
     
-  validate: async () => // ✅ הסרנו את הפרמטר token
+  validate: async () =>
     apiCall('/auth/validate', {
       method: 'POST',
       body: JSON.stringify({}),
@@ -193,7 +215,7 @@ export const taskEndpoints = {
   getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// ✅ Flashcard endpoints - כל הקריאות יכללו cookies אוטומטית
+// ✅ Flashcard endpoints
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
@@ -202,10 +224,10 @@ export const flashcardEndpoints = {
       const result = await apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`);
       
       if (result && result.success) {
-        console.log(`✅ Received ${result.data.length} unlearned flashcards`);
+        console.log(`✅ Received ${result.data.length} flashcards`);
         return result.data;
       } else if (Array.isArray(result)) {
-        console.log(`✅ Received ${result.length} unlearned flashcards (direct array)`);
+        console.log(`✅ Received ${result.length} flashcards (direct array)`);
         return result;
       } else {
         console.error('❌ Unexpected response format:', result);
@@ -239,7 +261,7 @@ export const flashcardEndpoints = {
     }),
 };
 
-// Words endpoints (לתאימות אחורה ולמקרים מיוחדים)
+// Words endpoints
 export const wordsEndpoints = {
   getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
     try {
@@ -288,8 +310,4 @@ export default {
   tasks: taskEndpoints,
   flashcards: flashcardEndpoints,
   words: wordsEndpoints,
-};
-export const debugEndpoints = {
-  cookies: async () => apiCall('/auth/debug/cookies'),
-  auth: async () => apiCall('/api/debug/auth')
 };
