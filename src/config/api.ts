@@ -190,7 +190,7 @@ export const authEndpoints = {
     });
     
     // ✅ אם קיבלנו טוקן, נשמור אותו גם בcookie
-    if (result.success && result.token) {
+    if (result.token) {
       localStorage.setItem('token', result.token);
       setTokenCookie(result.token);
       console.log('💾 Token saved to localStorage and cookie');
