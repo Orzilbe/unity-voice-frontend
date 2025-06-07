@@ -179,7 +179,7 @@ export const authEndpoints = {
     console.log('🔑 Starting login process...', { email: credentials.email });
     
     try {
-      const result = await apiCall('/api/auth/login', {
+      const result = await apiCall('/auth/login', {
         method: 'POST',
         body: JSON.stringify(credentials),
       });
@@ -240,7 +240,7 @@ export const authEndpoints = {
     ageRange?: string;
     [key: string]: unknown;
   }) => 
-    apiCall('/api/auth/register', {
+    apiCall('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     }),
@@ -291,7 +291,7 @@ export const authEndpoints = {
     }
     
     try {
-      return await apiCall('/api/auth/logout', {
+      return await apiCall('/auth/logout', {
         method: 'POST',
       });
     } catch (error) {
@@ -301,25 +301,25 @@ export const authEndpoints = {
   }
 };
 
-// User endpoints - ✅ תוקן עם /api
+// User endpoints - ✅ תוקן
 export const userEndpoints = {
-  getProfile: async () => apiCall('/api/user/profile'),
+  getProfile: async () => apiCall('/user/profile'),
   updateProfile: async (data: unknown) => 
-    apiCall('/api/user/profile', {
+    apiCall('/user/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  getData: async () => apiCall('/api/user/data'),
+  getData: async () => apiCall('/user/data'),
 };
 
-// Topics endpoints - ✅ תוקן עם /api
+// Topics endpoints - ✅ תוקן  
 export const topicsEndpoints = {
-  getAll: async () => apiCall('/api/topics'),
-  getById: async (id: string) => apiCall(`/api/topics/${id}`),
-  getUserProgress: async () => apiCall('/api/topics/progress'),
+  getAll: async () => apiCall('/topics'),
+  getById: async (id: string) => apiCall(`/topics/${id}`),
+  getUserProgress: async () => apiCall('/topics/progress'),
 };
 
-// Task endpoints - ✅ תוקן עם /api
+// Task endpoints - ✅ תוקן
 export const taskEndpoints = {
   create: async (taskData: {
     UserId: string;
@@ -327,26 +327,26 @@ export const taskEndpoints = {
     Level: number;
     TaskType: string;
     StartDate?: string;
-  }) => apiCall('/api/tasks', {
+  }) => apiCall('/tasks', {
     method: 'POST',
     body: JSON.stringify(taskData),
   }),
-  getById: async (taskId: string) => apiCall(`/api/tasks/${taskId}`),
+  getById: async (taskId: string) => apiCall(`/tasks/${taskId}`),
   update: async (taskId: string, updateData: unknown) => 
-    apiCall(`/api/tasks/${taskId}`, {
+    apiCall(`/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(updateData),
     }),
-  getUserTasks: async (userId: string) => apiCall(`/api/tasks/user/${userId}`),
+  getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// Flashcard endpoints - ✅ תוקן עם /api
+// Flashcard endpoints - ✅ תוקן
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
       console.log(`🚀 Fetching flashcards: topic="${topic}", level="${level}"`);
       
-      const result = await apiCall(`/api/flashcards/${encodeURIComponent(topic)}/${level}`);
+      const result = await apiCall(`/flashcards/${encodeURIComponent(topic)}/${level}`);
       
       if (result && result.success) {
         console.log(`✅ Received ${result.data.length} flashcards`);
@@ -370,13 +370,13 @@ export const flashcardEndpoints = {
     TopicName: string;
     Level?: number;
     ExampleUsage?: string;
-  }) => apiCall('/api/flashcards', {
+  }) => apiCall('/flashcards', {
     method: 'POST',
     body: JSON.stringify(flashcardData),
   }),
 
   markAsLearned: async (wordId: string, taskId: string, topicName?: string) => 
-    apiCall('/api/flashcards/mark-learned', {
+    apiCall('/flashcards/mark-learned', {
       method: 'POST',
       body: JSON.stringify({
         WordId: wordId,
@@ -386,14 +386,14 @@ export const flashcardEndpoints = {
     }),
 };
 
-// Words endpoints - ✅ תוקן עם /api
+// Words endpoints - ✅ תוקן
 export const wordsEndpoints = {
   getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
     try {
       console.log(`🚀 Fetching unlearned words: topic="${topic}", level="${level}"`);
       
       const result = await apiCall(
-        `/api/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=${randomLimit}&filterLearned=true`
+        `/words?topic=${encodeURIComponent(topic)}&level=${level}&randomLimit=${randomLimit}&filterLearned=true`
       );
       
       console.log(`✅ Received ${Array.isArray(result) ? result.length : 0} unlearned words`);
@@ -409,14 +409,14 @@ export const wordsEndpoints = {
     if (topic) params.append('topic', topic);
     if (level) params.append('level', level.toString());
     
-    return apiCall(`/api/words/learned?${params.toString()}`);
+    return apiCall(`/words/learned?${params.toString()}`);
   },
 
   getInTask: async (taskId: string) => 
-    apiCall(`/api/words/in-task?taskId=${taskId}`),
+    apiCall(`/words/in-task?taskId=${taskId}`),
 
   addToTask: async (taskId: string, wordIds: string[]) =>
-    apiCall('/api/words/to-task', {
+    apiCall('/words/to-task', {
       method: 'POST',
       body: JSON.stringify({
         taskId,
