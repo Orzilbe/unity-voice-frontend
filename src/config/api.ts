@@ -1,4 +1,4 @@
-// unity-voice-frontend/src/config/api.ts - גרסה סופית מתוקנת
+// unity-voice-frontend/src/config/api.ts - גרסה מתוקנת עם טוכן אחיד
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 console.log('🔧 API Configuration:', {
@@ -88,11 +88,28 @@ async function handleResponse(response: Response) {
   }
 }
 
+// 🔧 פונקציה מאוחדת לקבלת טוכן
 function getAuthToken(): string | null {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    console.log('🔍 Getting auth token:', token ? 'Found' : 'Not found');
-    return token;
+    // 🔑 קודם כל נסה localStorage עם 'token'
+    let token = localStorage.getItem('token');
+    if (token) {
+      console.log('🔍 Getting auth token: Found in localStorage (token)');
+      return token;
+    }
+    
+    // אם לא מצאנו, נסה גם עם 'auth_token' (לתאימות אחורה)
+    token = localStorage.getItem('auth_token');
+    if (token) {
+      console.log('🔍 Getting auth token: Found in localStorage (auth_token)');
+      // העבר לשם החדש
+      localStorage.setItem('token', token);
+      localStorage.removeItem('auth_token');
+      return token;
+    }
+    
+    console.log('🔍 Getting auth token: Not found');
+    return null;
   }
   return null;
 }
@@ -127,15 +144,20 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
     ...options.headers as Record<string, string>
   };
 
+  // 🔑 הוסף את הטוכן לheader אם קיים
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+    console.log('🔑 Added Authorization header to request');
+  } else {
+    console.log('⚠️ No token found - sending request without authentication');
   }
 
   const fullUrl = `${API_URL}${endpoint}`;
   console.log(`🚀 Making API call to: ${fullUrl}`, {
     hasToken: !!token,
     environment: process.env.NODE_ENV,
-    method: options.method || 'GET'
+    method: options.method || 'GET',
+    headers: headers
   });
 
   try {
@@ -193,12 +215,12 @@ export const authEndpoints = {
       // בדוק אם יש טוקן
       if (result && result.token) {
         console.log('💾 Saving token to localStorage...');
-        localStorage.setItem('token', result.token);
+        localStorage.setItem('token', result.token); // 🔑 שמור תחת 'token'
         
         console.log('🍪 Saving token to cookie...');
         setTokenCookie(result.token);
         
-        // בדוק שהטוקן נשמר
+        // בדוק שהטוכן נשמר
         const savedToken = localStorage.getItem('token');
         console.log('✅ Token verification after save:', savedToken ? 'SUCCESS' : 'FAILED');
         
@@ -254,18 +276,23 @@ export const authEndpoints = {
       return { success: false, message: 'No token found' };
     }
     
-    console.log('✅ Token found, returning success (bypassing backend)');
-    
-    // ✅ פשוט החזר success אם יש טוקן - עוקפים את הbackend
-    return {
-      success: true,
-      valid: true,
-      user: {
-        id: 'temp_user',
-        userId: 'temp_user',
-        email: 'temp@example.com'
-      }
-    };
+    // 🔧 נסה לבדוק עם הbackend אם הטוכן תקין
+    try {
+      const result = await apiCall('/auth/validate', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      });
+      
+      console.log('✅ Token validation successful:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Token validation failed:', error);
+      return { 
+        success: false, 
+        message: 'Token validation failed',
+        error: error
+      };
+    }
   },
     
   logout: async () => {
@@ -273,6 +300,7 @@ export const authEndpoints = {
     
     // מחיקת localStorage
     localStorage.removeItem('token');
+    localStorage.removeItem('auth_token'); // גם הישן
     localStorage.removeItem('user');
     console.log('🗑️ Cleared localStorage');
     
@@ -301,7 +329,7 @@ export const authEndpoints = {
   }
 };
 
-// User endpoints - ✅ תוקן
+// שאר הendpoints נשארים אותו דבר...
 export const userEndpoints = {
   getProfile: async () => apiCall('/user/profile'),
   updateProfile: async (data: unknown) => 
@@ -312,14 +340,12 @@ export const userEndpoints = {
   getData: async () => apiCall('/user/data'),
 };
 
-// Topics endpoints - ✅ תוקן  
 export const topicsEndpoints = {
   getAll: async () => apiCall('/topics'),
   getById: async (id: string) => apiCall(`/topics/${id}`),
   getUserProgress: async () => apiCall('/topics/progress'),
 };
 
-// Task endpoints - ✅ תוקן
 export const taskEndpoints = {
   create: async (taskData: {
     UserId: string;
@@ -340,7 +366,6 @@ export const taskEndpoints = {
   getUserTasks: async (userId: string) => apiCall(`/tasks/user/${userId}`),
 };
 
-// Flashcard endpoints - ✅ תוקן
 export const flashcardEndpoints = {
   getByTopicAndLevel: async (topic: string, level: number) => {
     try {
@@ -386,7 +411,6 @@ export const flashcardEndpoints = {
     }),
 };
 
-// Words endpoints - ✅ תוקן
 export const wordsEndpoints = {
   getUnlearned: async (topic: string, level: number, randomLimit: number = 20) => {
     try {
