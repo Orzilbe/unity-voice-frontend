@@ -1,4 +1,4 @@
-// unity-voice-frontend/src/app/lib/api.ts
+// unity-voice-frontend/src/app/lib/api.ts - מתוקן עם טוכן אחיד
 
 /**
  * שמירת מילים למשימה
@@ -34,19 +34,31 @@ export async function saveWordsToTask(taskId: string, wordIds: (string | { WordI
     
     console.log(`Prepared ${wordIdsArray.length} word IDs to save for task ${taskId}`);
     
-    // השגת טוקן אימות
-    const token = localStorage.getItem('auth_token');
+    // 🔑 השגת טוכן אימות - מאוחד תחת 'token'
+    let token = localStorage.getItem('token');
+    if (!token) {
+      // נסה גם עם השם הישן לתאימות אחורה
+      token = localStorage.getItem('auth_token');
+      if (token) {
+        // העבר לשם החדש
+        localStorage.setItem('token', token);
+        localStorage.removeItem('auth_token');
+      }
+    }
+    
     if (!token) {
       console.error('Missing authentication token');
       return false;
     }
+    
+    console.log('🔑 Using token for API call');
     
     // קריאה ל-API
     const response = await fetch('/api/words-in-task', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}` // 🔑 הוסף את הטוכן כ-Bearer token
       },
       body: JSON.stringify({
         taskId: taskId,
@@ -88,14 +100,25 @@ export async function completeTask(
       return true;
     }
     
-    // השגת טוקן אימות
-    const token = localStorage.getItem('auth_token');
+    // 🔑 השגת טוכן אימות - מאוחד תחת 'token'
+    let token = localStorage.getItem('token');
+    if (!token) {
+      // נסה גם עם השם הישן לתאימות אחורה
+      token = localStorage.getItem('auth_token');
+      if (token) {
+        // העבר לשם החדש
+        localStorage.setItem('token', token);
+        localStorage.removeItem('auth_token');
+      }
+    }
+    
     if (!token) {
       console.error('Missing authentication token');
       return false;
     }
     
     console.log(`Completing task ${taskId} with score ${score} and duration ${durationSeconds}s`);
+    console.log('🔑 Using token for API call');
     
     // ניסיון ראשון - עם נקודת קצה ספציפית
     try {
@@ -103,7 +126,7 @@ export async function completeTask(
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}` // 🔑 הוסף את הטוכן כ-Bearer token
         },
         body: JSON.stringify({
           TaskScore: score,
@@ -129,7 +152,7 @@ export async function completeTask(
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}` // 🔑 הוסף את הטוכן כ-Bearer token
         },
         body: JSON.stringify({
           taskId: taskId,
