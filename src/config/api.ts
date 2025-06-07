@@ -29,8 +29,11 @@ async function handleResponse(response: Response) {
         throw errorObj;
       }
       
+      // ✅ החזר את הנתונים - לא שגיאה!
       return data;
+      
     } catch (jsonError) {
+      // רק אם response לא OK, אז זו שגיאה
       if (!response.ok) {
         const errorObj = {
           status: response.status,
@@ -42,10 +45,24 @@ async function handleResponse(response: Response) {
         console.error('❌ API Error (JSON Parse Failed):', errorObj);
         throw errorObj;
       }
-      throw jsonError;
+      
+      // ✅ אם response OK אבל JSON parsing נכשל, נסה להבין למה
+      console.warn('⚠️ JSON parse failed on successful response:', jsonError);
+      
+      // קבל את התוכן כטקסט במקום
+      try {
+        const text = await response.text();
+        console.log('📄 Response as text:', text);
+        // נסה לפרסר שוב
+        return JSON.parse(text);
+      } catch (secondAttempt) {
+        console.error('❌ Second parse attempt failed:', secondAttempt);
+        throw new Error(`Could not parse response as JSON: ${jsonError}`);
+      }
     }
   }
   
+  // המשך הקוד כמו שהיה...
   try {
     const text = await response.text();
     console.log(`📄 Response text (first 200 chars): ${text.substring(0, 200)}`);
