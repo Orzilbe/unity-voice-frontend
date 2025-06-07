@@ -13,6 +13,13 @@ interface User {
   [key: string]: unknown;
 }
 
+interface LoginResponse {
+  success: boolean;
+  token?: string;
+  message?: string;
+  details?: any;
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -240,7 +247,10 @@ export const useAuth = () => {
           isInitialized: true
         });
         
-        return { success: true };
+        return { 
+          success: true,
+          token: data.token || data.authToken 
+        };
       } else {
         updateAuthState({
           isAuthenticated: false,
