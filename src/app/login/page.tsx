@@ -75,7 +75,7 @@ export default function Login() {
         console.log('✅ Login successful!');
         // נווט ישירות ל-topics מבלי לחכות ל-useEffect
         console.log('🚀 Navigating to topics page...');
-        
+        localStorage.setItem('token', result.token);
         // נסה עם setTimeout קטן כדי לתת ל-state להתעדכן
         setTimeout(() => {
           console.log('🔄 Attempting navigation now...');
