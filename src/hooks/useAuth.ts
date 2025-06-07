@@ -199,9 +199,35 @@ export const useAuth = () => {
         if (data.token) {
           localStorage.setItem('token', data.token);
           console.log('💾 Token saved to localStorage');
+          
+          // שמירה גם בcookie לשרת
+          if (typeof document !== 'undefined') {
+            const isProduction = window.location.protocol === 'https:';
+            const cookieOptions = [
+              `authToken=${data.token}`,
+              'path=/',
+              ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
+              `max-age=${24 * 60 * 60}`
+            ];
+            document.cookie = cookieOptions.join('; ');
+            console.log('🍪 Token also saved to cookie for server');
+          }
         } else if (data.authToken) {
           localStorage.setItem('token', data.authToken);
           console.log('💾 AuthToken saved to localStorage');
+          
+          // שמירה גם בcookie לשרת
+          if (typeof document !== 'undefined') {
+            const isProduction = window.location.protocol === 'https:';
+            const cookieOptions = [
+              `authToken=${data.authToken}`,
+              'path=/',
+              ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax']),
+              `max-age=${24 * 60 * 60}`
+            ];
+            document.cookie = cookieOptions.join('; ');
+            console.log('🍪 AuthToken also saved to cookie for server');
+          }
         } else {
           console.warn('⚠️ No token received from server - relying on cookies');
         }
@@ -279,9 +305,22 @@ export const useAuth = () => {
       // ממשיכים עם logout גם אם הקריאה נכשלת
     }
     
-    // ✅ מחיקת נתונים מ-localStorage
+    // ✅ מחיקת נתונים מ-localStorage וcookies
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    
+    // מחיקת הcookie
+    if (typeof document !== 'undefined') {
+      const isProduction = window.location.protocol === 'https:';
+      const cookieOptions = [
+        'authToken=',
+        'path=/',
+        'expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        ...(isProduction ? ['SameSite=None', 'Secure'] : ['SameSite=Lax'])
+      ];
+      document.cookie = cookieOptions.join('; ');
+      console.log('🍪 Auth cookie cleared from client');
+    }
     
     updateAuthState({
       isAuthenticated: false,
