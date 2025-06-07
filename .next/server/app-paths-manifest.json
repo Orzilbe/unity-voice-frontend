@@ -1,14 +1,12 @@
 {
   "/api/tasks/route": "app/api/tasks/route.js",
-  "/api/comments/submit/route": "app/api/comments/submit/route.js",
-  "/api/words/required/route": "app/api/words/required/route.js",
-  "/api/interactive-session/route": "app/api/interactive-session/route.js",
-  "/api/analyze-conversation/route": "app/api/analyze-conversation/route.js",
   "/api/question/route": "app/api/question/route.js",
+  "/api/analyze-conversation/route": "app/api/analyze-conversation/route.js",
+  "/api/user-level/update/route": "app/api/user-level/update/route.js",
   "/_not-found/page": "app/_not-found/page.js",
   "/topics/page": "app/topics/page.js",
-  "/topics/[topicName]/tasks/flashcard/page": "app/topics/[topicName]/tasks/flashcard/page.js",
   "/topics/[topicName]/tasks/post/page": "app/topics/[topicName]/tasks/post/page.js",
   "/topics/[topicName]/tasks/quiz/page": "app/topics/[topicName]/tasks/quiz/page.js",
+  "/topics/[topicName]/tasks/flashcard/page": "app/topics/[topicName]/tasks/flashcard/page.js",
   "/topics/[topicName]/tasks/conversation/page": "app/topics/[topicName]/tasks/conversation/page.js"
 }
