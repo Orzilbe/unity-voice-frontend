@@ -245,16 +245,18 @@ export default function Topics() {
           </div>
         )}
 
-        {/* Hall of Fame Button */}
-        <div className="flex justify-center mb-8">
-          <Link href="/hall-of-fame">
-            <div className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center">
-              <span className="mr-2 text-xl">👑</span>
-              <span>Hall of Fame</span>
-            </div>
-          </Link>
-        </div>
-
+{/* Hall of Fame Button - זמנית מוסתר */}
+{/* 
+<div className="flex justify-center mb-8">
+  <Link href="/hall-of-fame">
+    <div className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center">
+      <span className="mr-2 text-xl">👑</span>
+      <span>Hall of Fame</span>
+    </div>
+  </Link>
+</div>
+*/}
+        
         {/* Error message */}
         {errorMessage && (
           <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 text-center">
