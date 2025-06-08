@@ -13,10 +13,10 @@ export function setAuthToken(token: string, rememberMe: boolean = true) {
   if (rememberMe) {
     // Cookie expires in 7 days
     const maxAge = 7 * 24 * 60 * 60; // 7 days in seconds
-    document.cookie = `auth_token=${token}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`;
+    document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`;
   } else {
     // Session cookie (expires when browser closes)
-    document.cookie = `auth_token=${token}; path=/; SameSite=Strict; Secure`;
+    document.cookie = `authToken=${token}; path=/; SameSite=Strict; Secure`;
   }
 }
 
@@ -41,7 +41,7 @@ export function getAuthToken(): string | null {
   const cookies = document.cookie.split(';');
   for (const cookie of cookies) {
     const [name, value] = cookie.trim().split('=');
-    if (name === 'auth_token') {
+    if (name === 'authToken') {
       return value;
     }
   }
@@ -57,7 +57,7 @@ export function clearAuthData() {
   localStorage.removeItem('user');
   
   // Clear cookie by setting expiration to past date
-  document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure';
+  document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure';
 }
 
 /**
