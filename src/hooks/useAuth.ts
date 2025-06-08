@@ -89,7 +89,7 @@ export const useAuth = () => {
     updateAuthState({ ...globalState, isLoading: true });
     try {
       const data = await authEndpoints.login({ email, password });
-      if (data.success && data.token) {
+      if (data.success || data.token) {
         localStorage.setItem('token', data.token);
         const user = data.user || { email };
         localStorage.setItem('user', JSON.stringify(user));
