@@ -38,7 +38,7 @@ const UserProfile = ({ isVisible = false, onToggle, showIcon = true }: UserProfi
       console.log('📊 UserProfile: Fetching user data...');
       setIsLoading(true);
       try {
-        const data = await authenticatedApiCall('/user/profile');
+        const data = await authenticatedApiCall('/user/data');
         
         // Set user data with proper type casting
         setUserData({
