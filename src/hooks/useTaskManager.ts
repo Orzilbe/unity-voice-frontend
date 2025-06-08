@@ -1,6 +1,6 @@
 // hooks/useTaskManager.ts
 import { useState } from 'react';
-
+import { fetchWithAuth } from '../lib/fetchWithAuth';
 // Define task types enum
 export enum TaskType {
   FLASHCARD = 'flashcard',
@@ -55,7 +55,7 @@ export function useTaskManager() {
       
       // Fetch all tasks for this user and topic - use original topic name
       console.log(`Fetching tasks for topic: ${topicName}`);
-      const response = await fetch(`/api/user-tasks?topicName=${encodeURIComponent(topicName)}`, {
+      const response = await fetchWithAuth(`/api/user-tasks?topicName=${encodeURIComponent(topicName)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -196,7 +196,7 @@ export function useTaskManager() {
       };
       console.log('Task creation payload:', payload);
       
-      const response = await fetch('/api/create-task', {
+      const response = await fetchWithAuth('/api/create-task', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -7,6 +7,7 @@ import { Users, Activity, TrendingUp, Calendar, RefreshCw, AlertCircle, Download
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { fetchWithAuth } from '../../lib/fetchWithAuth';
 
 interface UserStats {
   totalUsers: number;
@@ -96,12 +97,12 @@ const Dashboard = () => {
         // Fetch all dashboard data in parallel
         const [userStatsRes, usersByLevelRes, topicPopularityRes, userActivityRes, completionRatesRes, advancedStatsRes] = 
           await Promise.all([
-            fetch('/api/dashboard/user-stats', { headers }),
-            fetch('/api/dashboard/users-by-level', { headers }),
-            fetch(`/api/dashboard/topic-popularity?topic=${selectedTopic}`, { headers }),
-            fetch(`/api/dashboard/user-activity?range=${timeRange}`, { headers }),
-            fetch('/api/dashboard/completion-rates', { headers }),
-            fetch('/api/dashboard/advanced-stats', { headers })
+            fetchWithAuth('/api/dashboard/user-stats', { headers }),
+            fetchWithAuth('/api/dashboard/users-by-level', { headers }),
+            fetchWithAuth(`/api/dashboard/topic-popularity?topic=${selectedTopic}`, { headers }),
+            fetchWithAuth(`/api/dashboard/user-activity?range=${timeRange}`, { headers }),
+            fetchWithAuth('/api/dashboard/completion-rates', { headers }),
+            fetchWithAuth('/api/dashboard/advanced-stats', { headers })
           ]);
 
         // Check if all requests were successful
@@ -158,7 +159,7 @@ const Dashboard = () => {
         'Content-Type': 'application/json'
       };
 
-      const response = await fetch(`/api/dashboard/export?format=${format}`, { headers });
+      const response = await fetchWithAuth(`/api/dashboard/export?format=${format}`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to export data');

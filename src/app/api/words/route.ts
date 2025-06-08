@@ -1,6 +1,6 @@
 // apps/web/src/app/api/words/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 const API_URL = process.env.API_URL || 'http://localhost:5000/api';
 
 /**
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/words${queryString ? `?${queryString}` : ''}`;
     console.log('🎯 Proxying words request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

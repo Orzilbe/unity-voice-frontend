@@ -8,7 +8,7 @@ import { FaStar, FaTrophy, FaStopwatch } from 'react-icons/fa';
 import { getAuthToken } from '../../../../../lib/auth';
 import { useAuth } from '../../../../../hooks/useAuth';
 import { formatTopicNameForDb } from '../../../../lib/topicUtils';
-
+import { fetchWithAuth } from '../../../../../lib/fetchWithAuth';
 interface WordData {
   WordId?: string;
   wordId?: string;
@@ -103,7 +103,7 @@ export default function QuizTask() {
         console.log('🔍 Step 1: Finding completed flashcard task...');
         const dbTopicName = formatTopicNameForDb(topicName);
         
-        const flashcardTaskResponse = await fetch(`/api/tasks/completed-flashcard?topicName=${encodeURIComponent(dbTopicName)}&level=${level}&userId=${encodeURIComponent(userId)}`, {
+        const flashcardTaskResponse = await fetchWithAuth(`/api/tasks/completed-flashcard?topicName=${encodeURIComponent(dbTopicName)}&level=${level}&userId=${encodeURIComponent(userId)}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

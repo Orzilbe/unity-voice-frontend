@@ -4,7 +4,7 @@ import { getSafeDbPool } from '../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { RowDataPacket } from '../../../types';
 import mysql, { OkPacket } from 'mysql2/promise';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 /**
  * המרת שם נושא מפורמט URL לפורמט מסד הנתונים
  * למשל: 'society-and-multiculturalism' -> 'Society and Multiculturalism'
@@ -217,7 +217,7 @@ export async function handleConversationTaskCompletion(userId: string, taskId: s
         if (token) {
           console.log(`Updating user level via API for topic ${TopicName}, level ${currentLevel}`);
           
-          const response = await fetch('/api/user-level/update', {
+          const response = await fetchWithAuth('/api/user-level/update', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -635,7 +635,7 @@ export async function saveWordsToTask(taskId: string, learnedWords: Array<string
       return { success: false, reason: 'auth_missing' };
     }
     
-    const response = await fetch('/api/words-in-task', {
+    const response = await fetchWithAuth('/api/words-in-task', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -679,7 +679,7 @@ export async function getWordsForTask(taskId: string): Promise<Array<Record<stri
       throw new Error('Authentication token missing');
     }
     
-    const response = await fetch(`/api/words-in-task?taskId=${encodeURIComponent(taskId)}`, {
+    const response = await fetchWithAuth(`/api/words-in-task?taskId=${encodeURIComponent(taskId)}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

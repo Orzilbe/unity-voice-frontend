@@ -1,6 +1,6 @@
 // apps/web/src/app/api/dashboard/export/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/dashboard/export`;
     console.log('Proxying data export request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

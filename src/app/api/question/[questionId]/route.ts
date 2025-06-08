@@ -1,6 +1,6 @@
 // unity-voice-frontend/src/app/api/question/[questionId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 /**
  * PATCH /api/question/[questionId] - Proxy to backend for updating questions
@@ -33,7 +33,7 @@ export async function PATCH(
     const backendUrl = `${API_URL}/questions/${questionId}`;
     console.log('Proxying question update request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'PATCH',
       headers: {
         'Authorization': authHeader,

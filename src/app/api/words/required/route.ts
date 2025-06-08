@@ -1,7 +1,7 @@
 // unity-voice-frontend/src/app/api/words/required/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function validateToken(token: string): { isValid: boolean; userId: string } {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     try {
       // Forward request to backend to get learned words from flashcards
-      const backendResponse = await fetch(`${API_URL}/words/required?topic=${encodeURIComponent(topic)}&level=${level || '1'}&userId=${authResult.userId}`, {
+      const backendResponse = await fetchWithAuth(`${API_URL}/words/required?topic=${encodeURIComponent(topic)}&level=${level || '1'}&userId=${authResult.userId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

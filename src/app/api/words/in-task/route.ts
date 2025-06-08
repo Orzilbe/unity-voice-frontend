@@ -1,6 +1,6 @@
 // apps/web/src/app/api/words/in-task/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 // Use consistent environment variable
 const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/words/in-task?taskId=${encodeURIComponent(taskId)}`;
     console.log('🎯 Proxying to backend URL:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

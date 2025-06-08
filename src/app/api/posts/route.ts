@@ -1,6 +1,6 @@
 // apps/web/src/app/api/posts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const backendUrl = `${API_URL}/posts`;
     console.log('Proxying post creation request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/posts${queryString ? `?${queryString}` : ''}`;
     console.log('Proxying get posts request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth (backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

@@ -1,6 +1,6 @@
 // unity-voice-frontend/src/app/api/interactive-session/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export async function POST(request: NextRequest) {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const backendUrl = `${API_URL}/interactive-sessions`;
     console.log('🔍 Proxying to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,

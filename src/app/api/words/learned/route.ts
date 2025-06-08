@@ -1,7 +1,7 @@
 // apps/web/src/app/api/words/learned/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/words/learned${queryString ? `?${queryString}` : ''}`;
     console.log('Proxying learned words request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

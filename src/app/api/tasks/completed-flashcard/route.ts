@@ -1,7 +1,7 @@
 // apps/web/src/app/api/tasks/completed-flashcard/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 /**
  * מחפש את משימת הכרטיסיות האחרונה שהושלמה
  * GET /api/tasks/completed-flashcard?topicName=xxx&level=xxx&userId=xxx
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       userId: userId
     });
 
-    const backendResponse = await fetch(`${backendUrl}/tasks/completed-flashcard?${params.toString()}`, {
+    const backendResponse = await fetchWithAuth(`${backendUrl}/tasks/completed-flashcard?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

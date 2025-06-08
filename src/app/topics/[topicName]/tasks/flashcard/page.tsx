@@ -10,7 +10,7 @@ import { useAuth } from '../../../../../hooks/useAuth';
 import { v4 as uuidv4 } from 'uuid';
 import { formatTopicNameForDb, formatTopicNameForUrl } from '../../../../lib/topicUtils';
 import { flashcardEndpoints, taskEndpoints, topicsEndpoints } from '../../../../../config/api';
-
+import { fetchWithAuth } from '../../../../../lib/fetchWithAuth';
 interface Flashcard {
   WordId: string;
   Word: string;
@@ -358,7 +358,7 @@ const saveAllWordsToTask = useCallback(async () => {
       sampleWordIds: wordIds.slice(0, 3)
     });
     
-    const response = await fetch('/api/words/to-task', {
+    const response = await fetchWithAuth('/api/words/to-task', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -413,7 +413,7 @@ const testApiConnection = useCallback(async () => {
   try {
     console.log('🧪 Testing API connection...');
     
-    const response = await fetch('/api/health', {
+    const response = await fetchWithAuth('/api/health', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -590,7 +590,7 @@ useEffect(() => {
       
       console.log(`Completing flashcard task ${taskId} with duration ${durationTask} seconds`);
       
-      const response = await fetch('/api/tasks', {
+      const response = await fetchWithAuth('/api/tasks', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -652,7 +652,7 @@ useEffect(() => {
       
       console.log('📤 Quiz task creation request:', requestBody);
       
-      const createTaskResponse = await fetch('/api/tasks', {
+      const createTaskResponse = await fetchWithAuth('/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import Link from 'next/link';
 import Image from 'next/image';
-
+import { fetchWithAuth } from '../../lib/fetchWithAuth';
 interface TopUser {
   UserId: string;
   FirstName: string;
@@ -29,7 +29,7 @@ export default function HallOfFame() {
     const fetchTopUsers = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/top-users', {
+        const response = await fetchWithAuth('/api/top-users', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

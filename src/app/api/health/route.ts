@@ -1,6 +1,6 @@
 // apps/web/src/app/api/health/route.ts
 import { NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 export async function GET() {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -17,7 +17,7 @@ export async function GET() {
     }
     
     // Try to connect to the API's health endpoint, or just the base URL
-    const response = await fetch(`${apiUrl}/health`, {
+    const response = await fetchWithAuth(`${apiUrl}/health`, {
       method: 'GET',
       headers: { 
         'Accept': 'application/json'

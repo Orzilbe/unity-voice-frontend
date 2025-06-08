@@ -1,6 +1,6 @@
   // unity-voice-frontend/src/app/api/auth/validate/route.ts
   import { NextRequest, NextResponse } from 'next/server';
-
+  import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
   export async function POST(request: NextRequest) {
     try {
       const body = await request.json();
@@ -17,7 +17,7 @@
       console.log('Validating token at:', apiUrl);
       
       // Forward validation request to backend
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithAuth(apiUrl, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

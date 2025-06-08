@@ -1,6 +1,6 @@
 // apps/web/src/app/api/user-data/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 /**
  * GET /api/user-data - Proxy to backend for fetching user data with statistics
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/user-profile/data`;
     console.log('Proxying user data request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

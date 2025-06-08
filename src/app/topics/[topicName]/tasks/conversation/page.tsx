@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { getAuthToken } from '../../../../../lib/auth';
 import { useAuth } from '../../../../../hooks/useAuth';
+import { fetchWithAuth } from '../../../../../lib/fetchWithAuth';
 
 // Polyfill AbortSignal.timeout for browsers that don't support it
 if (!AbortSignal.timeout) {
@@ -132,7 +133,7 @@ export default function ConversationPage() {
           console.log('Level:', level);
           
           // Create a new conversation task
-          const response = await fetch('/api/tasks', {
+          const response = await fetchWithAuth('/api/tasks', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -365,7 +366,7 @@ export default function ConversationPage() {
         
         // Load required words for this topic and level
         try {
-          const wordsResponse = await fetch(`/api/words/required?topic=${encodeURIComponent(formatTopicNameForDB(topicName))}&level=${level}`, {
+          const wordsResponse = await fetchWithAuth(`/api/words/required?topic=${encodeURIComponent(formatTopicNameForDB(topicName))}&level=${level}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
@@ -848,7 +849,7 @@ export default function ConversationPage() {
         throw new Error('Authentication required');
       }
 
-      const response = await fetch('/api/analyze-conversation', {
+      const response = await fetchWithAuth('/api/analyze-conversation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1057,7 +1058,7 @@ export default function ConversationPage() {
         const token = getAuthToken();
         
         if (token) {
-          await fetch(`/api/tasks`, {
+          await fetchWithAuth(`/api/tasks`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -1126,7 +1127,7 @@ export default function ConversationPage() {
       }
       
       try {
-        await fetch(`/api/tasks`, {
+        await fetchWithAuth(`/api/tasks`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -1149,7 +1150,7 @@ export default function ConversationPage() {
       try {
         const formattedTopicName = formatTopicNameForDB(topicName);
         
-        await fetch('/api/user-level/update', {
+        await fetchWithAuth('/api/user-level/update', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1192,7 +1193,7 @@ export default function ConversationPage() {
         return newSessionId;
       }
       
-      const response = await fetch('/api/interactive-session', {
+      const response = await fetchWithAuth('/api/interactive-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1251,7 +1252,7 @@ export default function ConversationPage() {
         ? questionText.substring(0, 997) + '...' 
         : questionText;
       
-      const response = await fetch('/api/question', {
+      const response = await fetchWithAuth('/api/question', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1307,7 +1308,7 @@ export default function ConversationPage() {
         }
       }
       
-      const response = await fetch(`/api/question/${questionId}`, {
+      const response = await fetchWithAuth(`/api/question/${questionId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

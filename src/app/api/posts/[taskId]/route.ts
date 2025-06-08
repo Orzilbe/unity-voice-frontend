@@ -1,7 +1,7 @@
 // unity-voice-frontend/src/app/api/posts/[taskId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ taskId: string }> }
@@ -39,7 +39,7 @@ export async function GET(
     
     console.log(`Forwarding request to: ${backendUrl}`);
     
-    const backendResponse = await fetch(backendUrl, {
+    const backendResponse = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

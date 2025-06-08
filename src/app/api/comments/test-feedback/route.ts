@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 export async function POST(request: NextRequest) {
   console.group('POST /api/comments/test-feedback - Frontend Proxy');
   
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Forward the request to the backend
     const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     
-    const backendResponse = await fetch(`${backendUrl}/comments/test-feedback`, {
+    const backendResponse = await fetchWithAuth(`${backendUrl}/comments/test-feedback`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

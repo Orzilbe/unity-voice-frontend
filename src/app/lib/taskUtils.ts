@@ -1,5 +1,5 @@
 // apps/web/src/lib/taskUtils.ts
-
+import { fetchWithAuth } from '../../lib/fetchWithAuth';
 /**
  * פונקציה לשמירת מילים למשימה
  * 
@@ -45,7 +45,7 @@ export async function saveWordsToTask(taskId: string, wordIds: string[]): Promis
     }
     
     // שלח בקשה ל-API
-    const response = await fetch('/api/words-in-task', {
+    const response = await fetchWithAuth('/api/words-in-task', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ try {
   }
   
   // Complete task and record word usage in a single request
-  const response = await fetch(`/api/tasks/${taskId}/complete`, {
+  const response = await fetchWithAuth(`/api/tasks/${taskId}/complete`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ try {
   }
   
   // Record word usage
-  const response = await fetch(`/api/tasks/${taskId}/words`, {
+  const response = await fetchWithAuth(`/api/tasks/${taskId}/words`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -215,7 +215,7 @@ try {
   }
   
   // שלב 1: עדכון המשימה
-  const taskResponse = await fetch('/api/tasks', {
+  const taskResponse = await fetchWithAuth('/api/tasks', {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -237,7 +237,7 @@ try {
   console.log('[TaskUtils] Task updated successfully');
   
   // שלב 2: עדכון רמת המשתמש
-  const userLevelResponse = await fetch('/api/user-level/update', {
+  const userLevelResponse = await fetchWithAuth('/api/user-level/update', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

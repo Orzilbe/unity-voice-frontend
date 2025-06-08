@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 export async function POST(request: NextRequest) {
   console.group('POST /api/comments/submit (Frontend Proxy)');
   console.log('Request received at:', new Date().toISOString());
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
       
       try {
-        const taskResponse = await fetch(`${backendUrl}/post-task/${body.taskId}`, {
+        const taskResponse = await fetchWithAuth(`${backendUrl}/post-task/${body.taskId}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     console.log('Forwarding comment submission to backend...');
     const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
     
-    const backendResponse = await fetch(`${backendUrl}/comments`, {
+    const backendResponse = await fetchWithAuth(`${backendUrl}/comments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

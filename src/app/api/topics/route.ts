@@ -1,6 +1,6 @@
 // apps/web/src/app/api/topics/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 // Mock data to use when API is unavailable
 const mockTopics = [
   {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     console.log('Fetching topics from:', apiUrl);
     
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithAuth(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

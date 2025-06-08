@@ -1,7 +1,7 @@
 // unity-voice-frontend/src/app/api/create-post/[topicName]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 // Backend API URL - this should be your actual backend server
 const BACKEND_API_URL = process.env.API_URL || 'http://localhost:5000';
 
@@ -39,7 +39,7 @@ export async function POST(
       console.log(`Forwarding request to backend API at: ${BACKEND_API_URL}`);
       
       // Forward the request to the actual backend server
-      const backendResponse = await fetch(`${BACKEND_API_URL}/api/post/create/${encodeURIComponent(topicName)}`, {
+      const backendResponse = await fetchWithAuth(`${BACKEND_API_URL}/api/post/create/${encodeURIComponent(topicName)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

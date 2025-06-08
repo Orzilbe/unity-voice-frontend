@@ -1,5 +1,5 @@
 // unity-voice-frontend/src/app/lib/api.ts - מתוקן עם טוכן אחיד
-
+import { fetchWithAuth } from '../../lib/fetchWithAuth';
 /**
  * שמירת מילים למשימה
  * @param taskId מזהה המשימה
@@ -54,7 +54,7 @@ export async function saveWordsToTask(taskId: string, wordIds: (string | { WordI
     console.log('🔑 Using token for API call');
     
     // קריאה ל-API
-    const response = await fetch('/api/words-in-task', {
+    const response = await fetchWithAuth('/api/words-in-task', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -122,7 +122,7 @@ export async function completeTask(
     
     // ניסיון ראשון - עם נקודת קצה ספציפית
     try {
-      const response = await fetch(`/api/tasks/${taskId}/complete`, {
+      const response = await fetchWithAuth(`/api/tasks/${taskId}/complete`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ export async function completeTask(
     
     // ניסיון שני - עם נקודת קצה כללית
     try {
-      const response = await fetch(`/api/tasks`, {
+      const response = await fetchWithAuth(`/api/tasks`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

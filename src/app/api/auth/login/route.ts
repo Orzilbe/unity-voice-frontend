@@ -1,5 +1,6 @@
 // unity-voice-frontend/src/app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
     console.log('Attempting login at:', apiUrl);
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithAuth(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })

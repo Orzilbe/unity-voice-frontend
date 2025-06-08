@@ -1,7 +1,7 @@
 // apps/web/src/app/api/tasks/route.ts - תיקון מאוחד
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 const API_URL = process.env.API_URL || 'http://localhost:5000/api';
 console.log('🔍 API_URL value:', API_URL);
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const backendUrl = `${API_URL}/tasks`;
     console.log('🚀 Proxying task creation request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'POST',
       headers: {
         'Authorization': authHeader || '',
@@ -163,7 +163,7 @@ export async function PUT(request: NextRequest) {
     const backendUrl = `${API_URL}/tasks/${taskId}`;
     console.log('🚀 Proxying task update request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'PATCH',
       headers: {
         'Authorization': authHeader || '',
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
     const backendUrl = `${API_URL}/tasks${queryString ? `?${queryString}` : ''}`;
     console.log('🚀 Proxying get tasks request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'GET',
       headers: {
         'Authorization': authHeader || '',

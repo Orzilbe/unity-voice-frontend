@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 export async function POST(request: NextRequest) {
   console.group('POST /api/comments/submit - Frontend Proxy');
   console.log('Request received at:', new Date().toISOString());
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     
     console.log(`Forwarding comment submission to: ${backendUrl}`);
     
-    const backendResponse = await fetch(backendUrl, {
+    const backendResponse = await fetchWithAuth(backendUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

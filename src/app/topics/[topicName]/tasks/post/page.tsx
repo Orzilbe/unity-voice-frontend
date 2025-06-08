@@ -8,7 +8,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { FaHeart, FaComment, FaShare, FaInfoCircle, FaRedo } from 'react-icons/fa';
 import { getAuthToken } from '../../../../../lib/auth';
 import { useAuth } from '../../../../../hooks/useAuth';
-
+import { fetchWithAuth } from '../../../../../lib/fetchWithAuth';
 interface FeedbackResult {
   totalScore: number;
   clarityScore: number;
@@ -82,7 +82,7 @@ export default function PostTask() {
       
       console.log(`🎯 Fetching post data for task: ${taskId}`);
       
-      const response = await fetch(`/api/posts/${encodeURIComponent(taskId)}`, {
+      const response = await fetchWithAuth(`/api/posts/${encodeURIComponent(taskId)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -141,7 +141,7 @@ export default function PostTask() {
       setIsRegenerating(true);
       console.log('🔄 Regenerating post...');
       
-      const response = await fetch(`/api/posts/regenerate/${encodeURIComponent(taskId)}`, {
+      const response = await fetchWithAuth(`/api/posts/regenerate/${encodeURIComponent(taskId)}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function PostTask() {
       
       console.log('💬 Submitting comment...');
       
-      const response = await fetch('/api/comments/submit', {
+      const response = await fetchWithAuth('/api/comments/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -257,7 +257,7 @@ export default function PostTask() {
   
       console.log('🚀 Creating conversation task...');
       
-      const response = await fetch('/api/tasks', {
+      const response = await fetchWithAuth('/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

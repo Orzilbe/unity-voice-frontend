@@ -1,6 +1,6 @@
 // apps/web/src/app/api/user/update-score/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-
+import { fetchWithAuth } from '../../../../../lib/fetchWithAuth';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const backendUrl = `${API_URL}/user/update-score`;
     console.log('Proxying update score request to:', backendUrl);
     
-    const response = await fetch(backendUrl, {
+    const response = await fetchWithAuth(backendUrl, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,

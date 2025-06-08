@@ -1,6 +1,7 @@
 // unity-voice-frontend/src/app/api/analyze-conversation/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { fetchWithAuth } from '../../../lib/fetchWithAuth';
 
 // API URL for the backend
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     
     // Forward request to backend API
     try {
-      const backendResponse = await fetch(`${API_URL}/conversation-analysis/analyze`, {
+      const backendResponse = await fetchWithAuth(`${API_URL}/conversation-analysis/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

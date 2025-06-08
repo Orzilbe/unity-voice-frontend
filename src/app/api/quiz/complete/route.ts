@@ -1,7 +1,7 @@
 // unity-voice-frontend/src/app/api/quiz/complete/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '../../auth/verifyAuth';
-
+import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 interface CompleteQuizRequest {
   taskId: string;
   topicName: string;
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     console.log('Forwarding request to backend...');
     const backendUrl = process.env.NEXT_PUBLIC_API_URL;
     
-    const backendResponse = await fetch(`${backendUrl}/quiz/complete`, {
+    const backendResponse = await fetchWithAuth(`${backendUrl}/quiz/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
