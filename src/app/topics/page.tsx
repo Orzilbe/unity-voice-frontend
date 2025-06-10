@@ -76,22 +76,10 @@ const { isAuthenticated, isLoading, user, isInitialized, logout } = useAuth();
     if (isAuthenticated) {
       // Fetch topics
 const fetchTopics = async () => {
-  try {
-    console.log('🔄 Starting to fetch topics...');
-    const data = await topicsEndpoints.getAll();
-    console.log('✅ Topics data received:', data);
-    console.log('🔍 Topics count:', Array.isArray(data) ? data.length : 'Not array');
-    console.log('🔍 First topic:', data?.[0]);
-    setTopics(data);
-    console.log('✅ Topics state updated');
-  } catch (error) {
-    console.error('❌ Error fetching topics:', error);
-    console.error('❌ Error type:', typeof error);
-    console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
-    
-    // Fallback to mock data if API fails
-    console.log('🔄 Using mock topics data as fallback');
-    setTopics([
+  console.log('🔄 Starting to fetch topics...');
+  
+  // Fallback topics data
+  const fallbackTopics = [
       { TopicName: "Diplomacy and International Relations", TopicHe: "דיפלומטיה ויחסים בינלאומיים", Icon: "🤝" },
       { TopicName: "Economy and Entrepreneurship", TopicHe: "כלכלה ויזמות", Icon: "💰" },
       { TopicName: "Environment and Sustainability", TopicHe: "סביבה וקיימות", Icon: "🌱" },
@@ -100,7 +88,39 @@ const fetchTopics = async () => {
       { TopicName: "Innovation and Technology", TopicHe: "חדשנות וטכנולוגיה", Icon: "💡" },
       { TopicName: "Iron Swords War", TopicHe: "מלחמת חרבות ברזל", Icon: "⚔️" },
       { TopicName: "Society and Multiculturalism", TopicHe: "חברה ורב תרבותיות", Icon: "🌍" }
+  ];
+  
+  try {
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout after 5 seconds')), 5000)
+    );
+    
+    // Race between API call and timeout
+    const data = await Promise.race([
+      topicsEndpoints.getAll(),
+      timeoutPromise
     ]);
+    
+    console.log('✅ Topics data received:', data);
+    console.log('🔍 Topics count:', Array.isArray(data) ? data.length : 'Not array');
+    console.log('🔍 First topic:', data?.[0]);
+    
+    if (Array.isArray(data) && data.length > 0) {
+      setTopics(data);
+      console.log('✅ Topics state updated with API data');
+    } else {
+      console.log('⚠️ API returned empty or invalid data, using fallback');
+      setTopics(fallbackTopics);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching topics:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
+    
+    console.log('🔄 Using fallback topics data');
+    setTopics(fallbackTopics);
   }
 };
 
