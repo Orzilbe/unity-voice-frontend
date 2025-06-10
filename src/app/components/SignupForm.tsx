@@ -190,16 +190,11 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       console.log('Authentication data verified in localStorage');
       console.log('Redirecting to topics page...');
       
-      // מעבר לעמוד הנושאים
-      router.push('/topics');
-      
-      // גיבוי אם router.push לא עובד
+      // מעבר ישיר לעמוד הנושאים - ללא redirect ל-login
       setTimeout(() => {
-        if (window.location.pathname !== '/topics') {
-          console.log('Router.push failed, using window.location...');
-          window.location.href = '/topics';
-        }
-      }, 1000);
+        console.log('Forcing redirect to topics...');
+        window.location.href = '/topics';
+      }, 500);
       
     } else {
       console.error('Failed to save authentication data to localStorage');

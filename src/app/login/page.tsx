@@ -31,7 +31,12 @@ function LoginForm() {
   useEffect(() => {
     if (isAuthenticated) {
       console.log('User already authenticated, redirecting to:', redirectTo);
+      // נסה גם router.push וגם window.location
       router.push(redirectTo);
+      setTimeout(() => {
+        console.log('Forcing redirect with window.location to:', redirectTo);
+        window.location.href = redirectTo;
+      }, 500);
     }
   }, [isAuthenticated, router, redirectTo]);
 
@@ -67,7 +72,12 @@ function LoginForm() {
       
       if (result.success) {
         console.log('Login successful, redirecting to:', redirectTo);
+        // נסה גם router.push וגם window.location
         router.push(redirectTo);
+        setTimeout(() => {
+          console.log('Forcing redirect after login to:', redirectTo);
+          window.location.href = redirectTo;
+        }, 500);
       } else {
         setError(result.message || 'Login failed');
       }
