@@ -108,7 +108,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\Users\\orzil\\OneDrive\\שולחן העבודה\\פגמר\\080625\\unity-voice-frontend-1",
+    "outputFileTracingRoot": "C:\\Projects\\100625\\unity-voice-frontend",
     "experimental": {
       "nodeMiddleware": false,
       "cacheLife": {
@@ -291,10 +291,10 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.js",
     "turbopack": {
-      "root": "C:\\Users\\orzil\\OneDrive\\שולחן העבודה\\פגמר\\080625\\unity-voice-frontend-1"
+      "root": "C:\\Projects\\100625\\unity-voice-frontend"
     }
   },
-  "appDir": "C:\\Users\\orzil\\OneDrive\\שולחן העבודה\\פגמר\\080625\\unity-voice-frontend-1",
+  "appDir": "C:\\Projects\\100625\\unity-voice-frontend",
   "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",

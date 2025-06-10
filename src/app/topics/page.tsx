@@ -41,7 +41,8 @@ export default function Topics() {
   const [showProfile, setShowProfile] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { isAuthenticated, isLoading, user, isInitialized } = useAuth();
+const { isAuthenticated, isLoading, user, isInitialized, logout } = useAuth();
+
   const router = useRouter();
   
   // Add detailed logging for authentication state
@@ -97,36 +98,65 @@ export default function Topics() {
       };
 
       // Fetch user data
-      const fetchUserData = async () => {
-        try {
-          const data = await userEndpoints.getData();
-          console.log('User data from API:', data);
-          
-          setUserData({
-            level: data.currentLevel || "Beginner",
-            points: data.currentLevelPoints || 0,
-            totalScore: data.totalScore || data.Score || data.score || 0,
-            completedTasks: data.completedTasksCount || 0,
-            activeSince: data.CreationDate ? new Date(data.CreationDate).toLocaleDateString() : "Today",
-            nextLevel: data.nextLevel || "Intermediate",
-            pointsToNextLevel: data.pointsToNextLevel || 100
-          });
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          // Fallback to mock data if API fails
-          console.log('🔄 Using mock user data as fallback');
-          setUserData({
-            level: "Beginner",
-            points: 150,
-            totalScore: 850,
-            completedTasks: 12,
-            activeSince: new Date().toLocaleDateString(),
-            nextLevel: "Intermediate", 
-            pointsToNextLevel: 250
-          });
-        }
-      };
-
+const fetchUserData = async () => {
+  try {
+    console.log('🔍 === DEBUG: Starting fetchUserData ===');
+    console.log('🔍 Current user from useAuth:', user);
+    console.log('🔍 Token in localStorage:', localStorage.getItem('token'));
+    console.log('🔍 IsAuthenticated:', isAuthenticated);
+    
+    const data = await userEndpoints.getData();
+    
+    console.log('🔍 === RAW API Response ===');
+    console.log('🔍 Full response:', data);
+    console.log('🔍 Response type:', typeof data);
+    console.log('🔍 Response keys:', Object.keys(data || {}));
+    console.log('🔍 Score field:', data?.Score);
+    console.log('🔍 CurrentLevel field:', data?.currentLevel);
+    console.log('🔍 CreationDate field:', data?.CreationDate);
+    console.log('🔍 === END RAW RESPONSE ===');
+    
+    // מיפוי הנתונים
+    const mappedUserData = {
+      level: data.currentLevel || "Beginner",
+      points: data.currentLevelPoints || 0,
+      totalScore: data.Score || 0, // שינוי: רק Score כמו ב-UserProfile
+      completedTasks: data.completedTasksCount || 0,
+      activeSince: data.CreationDate ? new Date(data.CreationDate).toLocaleDateString() : "Today",
+      nextLevel: data.nextLevel || "Intermediate",
+      pointsToNextLevel: data.pointsToNextLevel || 100
+    };
+    
+    console.log('🔍 === MAPPED USER DATA ===');
+    console.log('🔍 Mapped data:', mappedUserData);
+    console.log('🔍 Final totalScore:', mappedUserData.totalScore);
+    console.log('🔍 === END MAPPED DATA ===');
+    
+    setUserData(mappedUserData);
+    console.log('✅ User data set successfully');
+    
+  } catch (error) {
+    console.error('❌ === API FAILED ===');
+    console.error('❌ Error details:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error('❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('❌ === USING FALLBACK DATA ===');
+    
+    // Fallback למידע מדומה
+    const fallbackData = {
+      level: "Beginner",
+      points: 150,
+      totalScore: 850, // זה הערך הפיקטיבי
+      completedTasks: 12,
+      activeSince: new Date().toLocaleDateString(),
+      nextLevel: "Intermediate", 
+      pointsToNextLevel: 250
+    };
+    
+    console.log('🔄 Setting fallback data:', fallbackData);
+    setUserData(fallbackData);
+  }
+};
       fetchTopics();
       fetchUserData();
     }
@@ -277,18 +307,50 @@ export default function Topics() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="absolute top-4 left-4 flex space-x-3">
-        <button 
-          onClick={() => {
-            clearAuthData();
-            router.push('/login');
-          }}
-          className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center hover:shadow-xl transform hover:scale-105 transition-all duration-300"
-        >
-          <span className="text-2xl">👋</span>
-        </button>
-      </div>
+<div className="absolute top-4 left-4 flex space-x-3">
+  <button 
+    onClick={async () => {
+      console.log('👋 Logout button clicked - starting cleanup...');
+      
+      try {
+        // 1. נקה דרך useAuth hook (זה ינקה localStorage + יקרא לAPI)
+        await logout();
+        console.log('✅ useAuth logout completed');
+        
+        // 2. נקה דרך auth-cookies (לוודא שהכל נקי)
+        clearAuthData();
+        console.log('✅ clearAuthData completed');
+        
+        // 3. נקה ידנית את כל localStorage (לוודא שאין שאריות)
+        localStorage.clear();
+        console.log('✅ localStorage cleared');
+        
+        // 4. נקה cookies ידנית
+        document.cookie.split(";").forEach(cookie => {
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+          document.cookie = `${name.trim()}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+        });
+        console.log('✅ All cookies cleared');
+        
+        // 5. נווט לעמוד הלוגין
+        console.log('🔄 Redirecting to login...');
+        router.push('/login');
+        
+      } catch (error) {
+        console.error('❌ Error during logout:', error);
+        
+        // אם יש שגיאה, עדיין ננקה הכל ידנית
+        clearAuthData();
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    }}
+    className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+  >
+    <span className="text-2xl">👋</span>
+  </button>
+</div>
     </div>
   );
 }

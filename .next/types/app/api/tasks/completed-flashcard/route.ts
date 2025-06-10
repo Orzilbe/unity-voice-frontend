@@ -1,4 +1,4 @@
-// File: C:\Users\orzil\OneDrive\שולחן העבודה\פגמר\080625\unity-voice-frontend-1\src\app\api\tasks\completed-flashcard\route.ts
+// File: C:\Projects\100625\unity-voice-frontend\src\app\api\tasks\completed-flashcard\route.ts
 import * as entry from '../../../../../../src/app/api/tasks/completed-flashcard/route.js'
 import type { NextRequest } from 'next/server.js'
 
