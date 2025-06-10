@@ -1,7 +1,7 @@
 // unity-voice-frontend/src/app/api/question/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithAuth } from '../../../lib/fetchWithAuth';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
 
 export async function POST(request: NextRequest) {
   console.log("🟢 Question API called");

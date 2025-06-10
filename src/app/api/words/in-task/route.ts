@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithAuth } from '../../../../lib/fetchWithAuth';
 // Use consistent environment variable
-const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
+const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
 
 console.log('🔍 Words in-task API_URL value:', API_URL);
 

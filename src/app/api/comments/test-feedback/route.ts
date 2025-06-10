@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward the request to the backend
-    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
+    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
     
     const backendResponse = await fetchWithAuth(`${backendUrl}/comments/test-feedback`, {
       method: 'POST',

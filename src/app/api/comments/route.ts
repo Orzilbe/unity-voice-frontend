@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (body.taskId && !body.PostID) {
       console.log('Getting PostID from taskId...');
       
-      const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
+      const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
       
       try {
         const taskResponse = await fetchWithAuth(`${backendUrl}/post-task/${body.taskId}`, {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Forward the request to the backend
     console.log('Forwarding comment submission to backend...');
-    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
+    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-api-linux-f2hsapgsh3hcgqc0.israelcentral-01.azurewebsites.net/api';
     
     const backendResponse = await fetchWithAuth(`${backendUrl}/comments`, {
       method: 'POST',

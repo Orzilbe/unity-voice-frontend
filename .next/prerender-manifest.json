@@ -73,30 +73,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/signup": {
       "experimentalBypassFor": [
         {
@@ -168,13 +144,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "0a75c72c6075700ef23df16e70b79d17",
-    "previewModeSigningKey": "930e71002d98a52ad7d8e8d0ce2370ec874b8f1592e01e4f8cc96c24cbfdf17c",
-    "previewModeEncryptionKey": "54c22b9e9ef3554985b78d9c238609ef875984a494e2af46d6026fe840885054"
+    "previewModeId": "a927df7f5411d58e3e70be9d20d69ce2",
+    "previewModeSigningKey": "342fb3cda697248a188571e6779d60354e0c201db93d471c504b49a4f2916ffd",
+    "previewModeEncryptionKey": "14479ed13faaddfd94409ba670505439b1fcdecaed28dad8c9c49f5241bb9c39"
   }
 }
