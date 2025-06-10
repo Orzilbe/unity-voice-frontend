@@ -1150,20 +1150,35 @@ export default function ConversationPage() {
       try {
         const formattedTopicName = formatTopicNameForDB(topicName);
         
-        await fetchWithAuth('/api/user-level/update', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            topicName: formattedTopicName,
-            currentLevel: parseInt(level || '1'),
-            earnedScore: userProgress.averageScore || 150,
-            taskId: taskId,
-            isCompleted: true
-          })
-        });
+await fetchWithAuth('/api/user-level/update', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    topicName: formattedTopicName,
+    currentLevel: parseInt(level || '1'),
+    earnedScore: userProgress.averageScore || 150,
+    taskId: taskId,
+    isCompleted: true
+  })
+});
+
+// יצירת רשומה חדשה לרמה הבאה
+await fetchWithAuth('/api/user-level/update', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    topicName: formattedTopicName,
+    currentLevel: parseInt(level || '1') + 1, // רמה הבאה
+    taskId: taskId,
+    isCompleted: false
+  })
+});
       } catch (levelError) {
         console.error('Error updating user level:', levelError);
       }
