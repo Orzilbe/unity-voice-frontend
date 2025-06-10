@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: 'Backend service unavailable',
         details: 'Could not connect to backend API',
-        backendUrl: process.env.API_URL || 'http://localhost:5000/api'
+        backendUrl: process.env.API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api'
       }, { status: 503 });
     }
     

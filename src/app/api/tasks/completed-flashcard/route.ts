@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Forward the request to the backend
     console.log('🔗 Forwarding request to backend...');
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:5000/api';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
     
     const params = new URLSearchParams({
       topicName: topicName,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: 'Backend service unavailable',
         details: 'Could not connect to backend API',
-        backendUrl: process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:5000/api'
+        backendUrl: process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api'
       }, { status: 503 });
     }
     

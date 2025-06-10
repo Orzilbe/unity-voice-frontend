@@ -1,7 +1,7 @@
 // apps/web/src/app/api/words/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchWithAuth } from '../../../lib/fetchWithAuth';
-const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
 
 /**
  * GET /api/words - Proxy to backend for fetching words by topic and level

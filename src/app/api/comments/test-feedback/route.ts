@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward the request to the backend
-    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    const backendUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://unity-voice-backend-production-46a1.up.railway.app/api';
     
     const backendResponse = await fetchWithAuth(`${backendUrl}/comments/test-feedback`, {
       method: 'POST',
