@@ -75,27 +75,34 @@ const { isAuthenticated, isLoading, user, isInitialized, logout } = useAuth();
   useEffect(() => {
     if (isAuthenticated) {
       // Fetch topics
-      const fetchTopics = async () => {
-        try {
-          const data = await topicsEndpoints.getAll();
-          console.log('Topics data:', data);
-          setTopics(data);
-        } catch (error) {
-          console.error('Error fetching topics:', error);
-          // Fallback to mock data if API fails
-          console.log('🔄 Using mock topics data as fallback');
-          setTopics([
-            { TopicName: "Diplomacy and International Relations", TopicHe: "דיפלומטיה ויחסים בינלאומיים", Icon: "🤝" },
-            { TopicName: "Economy and Entrepreneurship", TopicHe: "כלכלה ויזמות", Icon: "💰" },
-            { TopicName: "Environment and Sustainability", TopicHe: "סביבה וקיימות", Icon: "🌱" },
-            { TopicName: "History and Heritage", TopicHe: "הסטוריה ומורשת", Icon: "🏛️" },
-            { TopicName: "Holocaust and Revival", TopicHe: "שואה ותקומה", Icon: "✡️" },
-            { TopicName: "Innovation and Technology", TopicHe: "חדשנות וטכנולוגיה", Icon: "💡" },
-            { TopicName: "Iron Swords War", TopicHe: "מלחמת חרבות ברזל", Icon: "⚔️" },
-            { TopicName: "Society and Multiculturalism", TopicHe: "חברה ורב תרבותיות", Icon: "🌍" }
-          ]);
-        }
-      };
+const fetchTopics = async () => {
+  try {
+    console.log('🔄 Starting to fetch topics...');
+    const data = await topicsEndpoints.getAll();
+    console.log('✅ Topics data received:', data);
+    console.log('🔍 Topics count:', Array.isArray(data) ? data.length : 'Not array');
+    console.log('🔍 First topic:', data?.[0]);
+    setTopics(data);
+    console.log('✅ Topics state updated');
+  } catch (error) {
+    console.error('❌ Error fetching topics:', error);
+    console.error('❌ Error type:', typeof error);
+    console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
+    
+    // Fallback to mock data if API fails
+    console.log('🔄 Using mock topics data as fallback');
+    setTopics([
+      { TopicName: "Diplomacy and International Relations", TopicHe: "דיפלומטיה ויחסים בינלאומיים", Icon: "🤝" },
+      { TopicName: "Economy and Entrepreneurship", TopicHe: "כלכלה ויזמות", Icon: "💰" },
+      { TopicName: "Environment and Sustainability", TopicHe: "סביבה וקיימות", Icon: "🌱" },
+      { TopicName: "History and Heritage", TopicHe: "הסטוריה ומורשת", Icon: "🏛️" },
+      { TopicName: "Holocaust and Revival", TopicHe: "שואה ותקומה", Icon: "✡️" },
+      { TopicName: "Innovation and Technology", TopicHe: "חדשנות וטכנולוגיה", Icon: "💡" },
+      { TopicName: "Iron Swords War", TopicHe: "מלחמת חרבות ברזל", Icon: "⚔️" },
+      { TopicName: "Society and Multiculturalism", TopicHe: "חברה ורב תרבותיות", Icon: "🌍" }
+    ]);
+  }
+};
 
       // Fetch user data
 const fetchUserData = async () => {
