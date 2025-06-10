@@ -2,15 +2,15 @@
 
 'use client';
 
-import { useState, ChangeEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, ChangeEvent, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 
 import Header from '../components/Header';
 import InputField from '../components/InputField';
 import FormContainer from '../components/FormContainer';
 
-export default function Login() {
+function LoginForm() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -18,13 +18,22 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
+
+  // קריאת פרמטר ה-redirect מה-URL
+  const redirectParam = searchParams.get('redirect');
+  const redirectTo = redirectParam ? decodeURIComponent(redirectParam) : '/topics';
+
+  console.log('Login page - redirect parameter:', redirectParam);
+  console.log('Login page - decoded redirect to:', redirectTo);
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/topics');
+      console.log('User already authenticated, redirecting to:', redirectTo);
+      router.push(redirectTo);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, redirectTo]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -53,8 +62,13 @@ export default function Login() {
     }
 
     try {
+      console.log('Attempting login...');
       const result = await login(formData.email, formData.password);
-      if (!result.success) {
+      
+      if (result.success) {
+        console.log('Login successful, redirecting to:', redirectTo);
+        router.push(redirectTo);
+      } else {
         setError(result.message || 'Login failed');
       }
     } catch {
@@ -163,5 +177,18 @@ export default function Login() {
         </div>
       </div>
     </div>
+  );
+}
+
+// הקומפוננטה הראשית עם Suspense
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 font-sans">
+        <div className="text-teal-600 text-xl animate-pulse">טוען...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
