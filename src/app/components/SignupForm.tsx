@@ -104,113 +104,82 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
   setApiError('');
   
-  // בדיקת תקינות הטופס
-  if (!validateForm()) {
-    console.warn('Form validation failed');
-    return;
-  }
-
-  setIsLoading(true);
-  
-  try {
-    console.log('Starting registration process...');
+  if (validateForm()) {
+    setIsLoading(true);
     
-    // הדפסת נתוני הטופס (בלי סיסמה)
-    console.log('Registration data:', {
-      email: formData.email,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      phoneNumber: formData.phoneNumber,
-      password: '[HIDDEN]',
-      englishLevel: formData.englishLevel,
-      ageRange: formData.ageRange,
-    });
-
-    // בדיקת בריאות השרת (אופציונלי)
     try {
-      console.log('Checking API health...');
-      const healthData = await healthCheck();
-      console.log('API health check result:', healthData);
-    } catch (healthError) {
-      console.warn('API health check failed, but proceeding with registration:', healthError);
-    }
+      // שמירת נתוני הטופס
+      console.log('Registration data:', {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        password: '[HIDDEN]',
+        englishLevel: formData.englishLevel,
+        ageRange: formData.ageRange,
+      });
 
-    // שליחת בקשת הרישום לשרת
-    console.log('Sending registration request...');
-    const data = await authEndpoints.register({
-      email: formData.email,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      phoneNumber: formData.phoneNumber,
-      password: formData.password,
-      englishLevel: formData.englishLevel,
-      ageRange: formData.ageRange,
-    });
-
-    console.log('Registration response received:', data);
-
-    // בדיקה אם הרישום הצליח
-    const isSuccess = !!(data.token && data.user);
-    
-    if (!isSuccess) {
-      // אם הרישום נכשל - הכנת הודעת שגיאה
-      let errorMessage = data.message || 'Registration failed';
-      
-      if (data.details) {
-        if (Array.isArray(data.details)) {
-          errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
-        } else if (typeof data.details === 'string') {
-          errorMessage += ': ' + data.details;
-        }
+      // בדיקה אם השרת זמין
+      try {
+        console.log('Checking API health...');
+        const healthData = await healthCheck();
+        console.log('API health check result:', healthData);
+      } catch (healthError) {
+        console.warn('API health check failed, but proceeding with registration:', healthError);
       }
-      
-      throw new Error(errorMessage);
-    }
 
-    // שמירת הטוקן והמשתמש ב-localStorage
-    console.log('Registration successful! Saving authentication data...');
-    
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      console.log('Token saved to localStorage');
-    } else {
-      console.warn('No auth token received in response');
-    }
-    
-    if (data.user) {
-      localStorage.setItem('user', JSON.stringify(data.user));
-      console.log('User data saved to localStorage:', data.user);
-    }
+      // Use centralized API configuration for registration
+      const data = await authEndpoints.register({
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        password: formData.password,
+        englishLevel: formData.englishLevel,
+        ageRange: formData.ageRange,
+      });
 
-    // ודא שהמידע נשמר בפועל
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedToken && savedUser) {
-      console.log('Authentication data verified in localStorage');
-      console.log('Redirecting to topics page...');
-      
-      // מעבר ישיר לעמוד הנושאים - ללא redirect ל-login
-      setTimeout(() => {
-        console.log('Forcing redirect to topics...');
-        window.location.href = '/topics';
-      }, 500);
-      
-    } else {
-      console.error('Failed to save authentication data to localStorage');
-      setApiError('Registration succeeded but failed to save login data. Please try logging in manually.');
-    }
+      console.log('Registration response data:', data);
 
-  } catch (error: unknown) {
-    console.error('Registration error:', error);
-    
-    // הצגת הודעת שגיאה למשתמש
-    const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
-    setApiError(errorMessage);
-    
-  } finally {
-    // סיום מצב הטעינה
-    setIsLoading(false);
+      // Check if registration was successful based on backend response structure
+      // Backend returns { message, token, user } on success
+      const isSuccess = !!(data.token && data.user);
+      
+      if (!isSuccess) {
+        let errorMessage = data.message || 'Registration failed';
+        
+        // אם יש פרטי שגיאה נוספים, נציג אותם
+        if (data.details) {
+          if (Array.isArray(data.details)) {
+            errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
+          } else if (typeof data.details === 'string') {
+            errorMessage += ': ' + data.details;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Store the token if provided
+      if (data.token) {
+        console.log('Received and storing auth token');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      } else {
+        console.warn('No auth token received in response');
+      }
+
+      console.log('Registration successful, redirecting to topics page');
+      router.push('/topics');
+    } catch (error: unknown) {
+      console.error('Registration error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+      setApiError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  } else {
+    console.warn('Form validation failed');
   }
 };
 

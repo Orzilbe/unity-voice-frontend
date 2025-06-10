@@ -2,15 +2,15 @@
 
 'use client';
 
-import { useState, ChangeEvent, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, ChangeEvent, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 
 import Header from '../components/Header';
 import InputField from '../components/InputField';
 import FormContainer from '../components/FormContainer';
 
-function LoginForm() {
+export default function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -18,27 +18,13 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { login, isAuthenticated } = useAuth();
-
-  // קריאת פרמטר ה-redirect מה-URL
-  const redirectParam = searchParams.get('redirect');
-  const redirectTo = redirectParam ? decodeURIComponent(redirectParam) : '/topics';
-
-  console.log('Login page - redirect parameter:', redirectParam);
-  console.log('Login page - decoded redirect to:', redirectTo);
 
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('User already authenticated, redirecting to:', redirectTo);
-      // נסה גם router.push וגם window.location
-      router.push(redirectTo);
-      setTimeout(() => {
-        console.log('Forcing redirect with window.location to:', redirectTo);
-        window.location.href = redirectTo;
-      }, 500);
+      router.push('/topics');
     }
-  }, [isAuthenticated, router, redirectTo]);
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -67,18 +53,8 @@ function LoginForm() {
     }
 
     try {
-      console.log('Attempting login...');
       const result = await login(formData.email, formData.password);
-      
-      if (result.success) {
-        console.log('Login successful, redirecting to:', redirectTo);
-        // נסה גם router.push וגם window.location
-        router.push(redirectTo);
-        setTimeout(() => {
-          console.log('Forcing redirect after login to:', redirectTo);
-          window.location.href = redirectTo;
-        }, 500);
-      } else {
+      if (!result.success) {
         setError(result.message || 'Login failed');
       }
     } catch {
@@ -187,18 +163,5 @@ function LoginForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-// הקומפוננטה הראשית עם Suspense
-export default function Login() {
-  return (
-    <Suspense fallback={
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-teal-50 font-sans">
-        <div className="text-teal-600 text-xl animate-pulse">טוען...</div>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
   );
 }
