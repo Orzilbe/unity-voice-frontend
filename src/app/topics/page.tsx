@@ -85,14 +85,14 @@ const { isAuthenticated, isLoading, user, isInitialized, logout } = useAuth();
           // Fallback to mock data if API fails
           console.log('🔄 Using mock topics data as fallback');
           setTopics([
-            { TopicName: "Medical", TopicHe: "רפואה", Icon: "🏥" },
-            { TopicName: "Legal", TopicHe: "משפטי", Icon: "⚖️" },
-            { TopicName: "Social", TopicHe: "חברתי", Icon: "👥" },
-            { TopicName: "Educational", TopicHe: "חינוכי", Icon: "📚" },
-            { TopicName: "Community", TopicHe: "קהילתי", Icon: "🏘️" },
-            { TopicName: "Employment", TopicHe: "תעסוקה", Icon: "💼" },
-            { TopicName: "Healthcare", TopicHe: "בריאות", Icon: "💊" },
-            { TopicName: "Rights", TopicHe: "זכויות", Icon: "🛡️" }
+            { TopicName: "Diplomacy and International Relations", TopicHe: "דיפלומטיה ויחסים בינלאומיים", Icon: "🤝" },
+            { TopicName: "Economy and Entrepreneurship", TopicHe: "כלכלה ויזמות", Icon: "💰" },
+            { TopicName: "Environment and Sustainability", TopicHe: "סביבה וקיימות", Icon: "🌱" },
+            { TopicName: "History and Heritage", TopicHe: "הסטוריה ומורשת", Icon: "🏛️" },
+            { TopicName: "Holocaust and Revival", TopicHe: "שואה ותקומה", Icon: "✡️" },
+            { TopicName: "Innovation and Technology", TopicHe: "חדשנות וטכנולוגיה", Icon: "💡" },
+            { TopicName: "Iron Swords War", TopicHe: "מלחמת חרבות ברזל", Icon: "⚔️" },
+            { TopicName: "Society and Multiculturalism", TopicHe: "חברה ורב תרבותיות", Icon: "🌍" }
           ]);
         }
       };
@@ -202,7 +202,8 @@ const fetchUserData = async () => {
   }
 
   console.log('✅ Topics page: Rendering content for authenticated user');
-
+console.log('🔍 Current topics in render:', topics);
+console.log('🔍 Topics length:', topics.length);
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 p-6 relative">
       {/* Debug Panel - Remove this after debugging */}
