@@ -8,7 +8,6 @@ import InputField from './InputField';
 import SelectField from './SelectField';
 import Header from './Header';
 import { authEndpoints, healthCheck } from '../../config/api';
-import { clearAuthData } from '../../utils/auth-cookies'; // Import the same function used in topics page
 
 interface FormData {
   email: string;
@@ -34,9 +33,6 @@ export default function SignupForm() {
   // השתמש ב-useEffect כדי לעדכן את הדגל רק בעת רינדור בדפדפן
   useEffect(() => {
     setIsMounted(true);
-    
-    // Clear any existing auth data when component mounts (fresh start for registration)
-    clearAuthData();
   }, []);
 
   const [formData, setFormData] = useState<FormData>({
@@ -112,10 +108,6 @@ export default function SignupForm() {
       setIsLoading(true);
       
       try {
-        // Clear any existing auth data before registration
-        console.log('Clearing any existing auth data before registration...');
-        clearAuthData();
-        
         // שמירת נתוני הטופס
         console.log('Registration data:', {
           email: formData.email,
@@ -168,13 +160,9 @@ export default function SignupForm() {
           throw new Error(errorMessage);
         }
 
-        // Clear any existing auth data before storing new ones (fresh session)
-        console.log('Clearing existing auth data before storing new session...');
-        clearAuthData();
-
-        // Store the new token and user data
+        // Store the token if provided
         if (data.token) {
-          console.log('Received and storing new auth token');
+          console.log('Received and storing auth token');
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
         } else {
@@ -187,10 +175,6 @@ export default function SignupForm() {
         console.error('Registration error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
         setApiError(errorMessage);
-        
-        // Clear auth data on error to ensure clean state
-        console.log('Registration failed, clearing any partial auth data...');
-        clearAuthData();
       } finally {
         setIsLoading(false);
       }
@@ -393,7 +377,7 @@ export default function SignupForm() {
                   >
                     {showConfirmPassword ? (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                       </svg>
                     ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
