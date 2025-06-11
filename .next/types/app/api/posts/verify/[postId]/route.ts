@@ -1,4 +1,4 @@
-// File: C:\Projects\100625\unity-voice-frontend\src\app\api\posts\verify\[postId]\route.ts
+// File: C:\Projects\110625\unity-voice-frontend\src\app\api\posts\verify\[postId]\route.ts
 import * as entry from '../../../../../../../src/app/api/posts/verify/[postId]/route.js'
 import type { NextRequest } from 'next/server.js'
 

@@ -8,6 +8,7 @@ import InputField from './InputField';
 import SelectField from './SelectField';
 import Header from './Header';
 import { authEndpoints, healthCheck } from '../../config/api';
+import { clearAuthData } from '../../utils/auth-cookies'; // Import the same function used in topics page
 
 interface FormData {
   email: string;
@@ -33,6 +34,9 @@ export default function SignupForm() {
   // השתמש ב-useEffect כדי לעדכן את הדגל רק בעת רינדור בדפדפן
   useEffect(() => {
     setIsMounted(true);
+    
+    // Clear any existing auth data when component mounts (fresh start for registration)
+    clearAuthData();
   }, []);
 
   const [formData, setFormData] = useState<FormData>({
@@ -100,88 +104,100 @@ export default function SignupForm() {
     return Object.keys(newErrors).length === 0;
   };
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  setApiError('');
-  
-  if (validateForm()) {
-    setIsLoading(true);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setApiError('');
     
-    try {
-      // שמירת נתוני הטופס
-      console.log('Registration data:', {
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        password: '[HIDDEN]',
-        englishLevel: formData.englishLevel,
-        ageRange: formData.ageRange,
-      });
-
-      // בדיקה אם השרת זמין
-      try {
-        console.log('Checking API health...');
-        const healthData = await healthCheck();
-        console.log('API health check result:', healthData);
-      } catch (healthError) {
-        console.warn('API health check failed, but proceeding with registration:', healthError);
-      }
-
-      // Use centralized API configuration for registration
-      const data = await authEndpoints.register({
-        email: formData.email,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        password: formData.password,
-        englishLevel: formData.englishLevel,
-        ageRange: formData.ageRange,
-      });
-
-      console.log('Registration response data:', data);
-
-      // Check if registration was successful based on backend response structure
-      // Backend returns { message, token, user } on success
-      const isSuccess = !!(data.token && data.user);
+    if (validateForm()) {
+      setIsLoading(true);
       
-      if (!isSuccess) {
-        let errorMessage = data.message || 'Registration failed';
+      try {
+        // Clear any existing auth data before registration
+        console.log('Clearing any existing auth data before registration...');
+        clearAuthData();
         
-        // אם יש פרטי שגיאה נוספים, נציג אותם
-        if (data.details) {
-          if (Array.isArray(data.details)) {
-            errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
-          } else if (typeof data.details === 'string') {
-            errorMessage += ': ' + data.details;
-          }
+        // שמירת נתוני הטופס
+        console.log('Registration data:', {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          password: '[HIDDEN]',
+          englishLevel: formData.englishLevel,
+          ageRange: formData.ageRange,
+        });
+
+        // בדיקה אם השרת זמין
+        try {
+          console.log('Checking API health...');
+          const healthData = await healthCheck();
+          console.log('API health check result:', healthData);
+        } catch (healthError) {
+          console.warn('API health check failed, but proceeding with registration:', healthError);
         }
+
+        // Use centralized API configuration for registration
+        const data = await authEndpoints.register({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          password: formData.password,
+          englishLevel: formData.englishLevel,
+          ageRange: formData.ageRange,
+        });
+
+        console.log('Registration response data:', data);
+
+        // Check if registration was successful based on backend response structure
+        // Backend returns { message, token, user } on success
+        const isSuccess = !!(data.token && data.user);
         
-        throw new Error(errorMessage);
-      }
+        if (!isSuccess) {
+          let errorMessage = data.message || 'Registration failed';
+          
+          // אם יש פרטי שגיאה נוספים, נציג אותם
+          if (data.details) {
+            if (Array.isArray(data.details)) {
+              errorMessage += ': ' + data.details.map((err: ErrorDetail) => err.msg || err.message).join(', ');
+            } else if (typeof data.details === 'string') {
+              errorMessage += ': ' + data.details;
+            }
+          }
+          
+          throw new Error(errorMessage);
+        }
 
-      // Store the token if provided
-      if (data.token) {
-        console.log('Received and storing auth token');
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        console.warn('No auth token received in response');
-      }
+        // Clear any existing auth data before storing new ones (fresh session)
+        console.log('Clearing existing auth data before storing new session...');
+        clearAuthData();
 
-      console.log('Registration successful, redirecting to topics page');
-      router.push('/topics');
-    } catch (error: unknown) {
-      console.error('Registration error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
-      setApiError(errorMessage);
-    } finally {
-      setIsLoading(false);
+        // Store the new token and user data
+        if (data.token) {
+          console.log('Received and storing new auth token');
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        } else {
+          console.warn('No auth token received in response');
+        }
+
+        console.log('Registration successful, redirecting to topics page');
+        router.push('/topics');
+      } catch (error: unknown) {
+        console.error('Registration error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+        setApiError(errorMessage);
+        
+        // Clear auth data on error to ensure clean state
+        console.log('Registration failed, clearing any partial auth data...');
+        clearAuthData();
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      console.warn('Form validation failed');
     }
-  } else {
-    console.warn('Form validation failed');
-  }
-};
+  };
 
   // החזר מסך טעינה אם טרם הושלם הרינדור בצד הלקוח
   if (!isMounted) {
@@ -377,7 +393,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   >
                     {showConfirmPassword ? (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                       </svg>
                     ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

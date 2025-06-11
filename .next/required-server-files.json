@@ -108,7 +108,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\Projects\\100625\\unity-voice-frontend",
+    "outputFileTracingRoot": "C:\\Projects\\110625\\unity-voice-frontend",
     "experimental": {
       "nodeMiddleware": false,
       "cacheLife": {
@@ -291,10 +291,10 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.js",
     "turbopack": {
-      "root": "C:\\Projects\\100625\\unity-voice-frontend"
+      "root": "C:\\Projects\\110625\\unity-voice-frontend"
     }
   },
-  "appDir": "C:\\Projects\\100625\\unity-voice-frontend",
+  "appDir": "C:\\Projects\\110625\\unity-voice-frontend",
   "relativeAppDir": "",
   "files": [
     ".next\\routes-manifest.json",
