@@ -1,6 +1,5 @@
-// unity-voice-frontend/src/app/components/LearningProcessGuide.tsx
 import React, { useState } from 'react';
-import { FaBookOpen, FaQuestionCircle, FaComments, FaMicrophone, FaCheck, FaArrowRight, FaStar, FaPlay, FaInfoCircle, FaTimes } from 'react-icons/fa';
+import { FaBookOpen, FaQuestionCircle, FaComments, FaMicrophone, FaCheck, FaArrowLeft, FaStar, FaPlay, FaInfoCircle, FaTimes } from 'react-icons/fa';
 
 interface LearningProcessGuideProps {
   isVisible?: boolean;
@@ -58,7 +57,7 @@ const LearningProcessGuide: React.FC<LearningProcessGuideProps> = ({
       hoverColor: "hover:bg-green-600",
       description: "הגב על פוסט מרשתות חברתיות",
       details: [
-        "קבל פוסט אמיתי מרשתות חברתיות בנושא שבחרת",
+        "קבל פוסט מרשתות חברתיות בנושא שבחרת",
         "הפוסט כולל את המילים שלמדת בהקשר טבעי",
         "כתוב תגובה משמעותית על הפוסט",
         "השתמש במילים הנדרשות בתגובה שלך",
@@ -168,7 +167,7 @@ const LearningProcessGuide: React.FC<LearningProcessGuideProps> = ({
                             </div>
                             
                             {index < steps.length - 1 && (
-                              <FaArrowRight className="text-gray-400 text-sm mt-1" />
+                              <FaArrowLeft className="text-gray-400 text-sm mt-1" />
                             )}
                           </div>
 
