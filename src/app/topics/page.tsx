@@ -9,6 +9,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { clearAuthData } from '../../utils/auth-cookies';
 import Link from 'next/link';
 import { authenticatedApiCall, topicsEndpoints, userEndpoints } from '../../config/api';
+import LearningProcessGuide from '../components/LearningProcessGuide';
+
 
 interface Topic {
   TopicName: string;
@@ -40,6 +42,7 @@ export default function Topics() {
   });
   const [showProfile, setShowProfile] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+const [showGuide, setShowGuide] = useState(false);
 
 const { isAuthenticated, isLoading, user, isInitialized, logout } = useAuth();
 
@@ -245,7 +248,11 @@ console.log('🔍 Topics length:', topics.length);
 
       {/* User Profile Component */}
       <UserProfile isVisible={showProfile} onToggle={toggleProfile} showIcon={true} />
-
+<LearningProcessGuide 
+  isVisible={showGuide} 
+  onToggle={() => setShowGuide(!showGuide)} 
+  showIcon={true} 
+/>
       {/* Main Content */}
       <div className="max-w-7xl mx-auto">
         <h1 className="text-5xl font-bold mb-8 text-center bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
