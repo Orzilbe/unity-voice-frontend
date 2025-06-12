@@ -169,8 +169,8 @@ export default function SignupForm() {
           console.warn('No auth token received in response');
         }
 
-        console.log('Registration successful, redirecting to topics page');
-        router.push('/topics');
+        console.log('Registration successful, redirecting to login page');
+        router.push('/login');
       } catch (error: unknown) {
         console.error('Registration error:', error);
         const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
